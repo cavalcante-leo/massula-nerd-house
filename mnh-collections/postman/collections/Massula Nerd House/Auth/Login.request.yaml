@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/login"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "nome": "admin",
+      "senha": "senha12345"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Login retorna 200 e accessToken', function () {
+        pm.response.to.have.status(200);
+        const body = pm.response.json();
+        pm.expect(body.accessToken).to.be.a('string').and.not.empty;
+        pm.collectionVariables.set('token', body.accessToken);
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,20 @@
+$kind: http-request
+url: "{{baseUrl}}/jogador-nivel/jogador/{{jogadorId}}/jogo/{{jogoId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: json
+  content: |-
+    {
+      "nivel": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Definir nível retorna 200', function () {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().sucesso).to.eql(true);
+      });
+    language: text/javascript
+order: 1000

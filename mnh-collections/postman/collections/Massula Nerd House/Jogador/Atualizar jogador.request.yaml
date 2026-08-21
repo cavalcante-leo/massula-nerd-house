@@ -1,0 +1,20 @@
+$kind: http-request
+url: "{{baseUrl}}/jogador/atualizar/{{jogadorId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: json
+  content: |-
+    {
+      "telefone": "(11) 98888-8888"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Atualizar jogador retorna 200', function () {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().jogador_atualizado.telefone).to.eql('(11) 98888-8888');
+      });
+    language: text/javascript
+order: 4000

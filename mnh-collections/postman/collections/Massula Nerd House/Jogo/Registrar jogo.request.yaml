@@ -1,0 +1,27 @@
+$kind: http-request
+url: "{{baseUrl}}/jogo/registrar"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Ticket to Ride",
+      "descricao": "Jogo de trilhos de trem",
+      "config_campos": [
+        { "nome": "cor", "tipo": "texto" },
+        { "nome": "pontos", "tipo": "numero" }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Registrar jogo retorna 201 com config_campos', function () {
+        pm.response.to.have.status(201);
+        const body = pm.response.json();
+        pm.expect(body.config_campos).to.be.an('array');
+        pm.collectionVariables.set('jogoId', body.id);
+      });
+    language: text/javascript
+order: 1000

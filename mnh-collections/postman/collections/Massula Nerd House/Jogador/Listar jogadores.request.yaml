@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/jogador/listar"
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Listar jogadores retorna 200 com total_presencas', function () {
+        pm.response.to.have.status(200);
+        const arr = pm.response.json();
+        pm.expect(arr).to.be.an('array');
+        if (arr.length) pm.expect(arr[0]).to.have.property('total_presencas');
+      });
+    language: text/javascript
+order: 2000

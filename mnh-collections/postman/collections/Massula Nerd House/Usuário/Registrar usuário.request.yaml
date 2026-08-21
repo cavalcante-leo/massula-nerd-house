@@ -1,0 +1,30 @@
+$kind: http-request
+url: "{{baseUrl}}/usuario/registrar"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Administrador Teste",
+      "nome_usuario": "admin_teste",
+      "senha": "senha12345",
+      "tipo": "admin"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Registrar usuário retorna 201', function () {
+        pm.response.to.have.status(201);
+        const body = pm.response.json();
+        pm.expect(body.nome_usuario).to.be.a('string');
+        pm.collectionVariables.set('usuarioId', body.id);
+      });
+      pm.test('Sem token retorna 401', function () {
+        pm.sendRequest({ url: pm.request.url, method: 'POST', header: [], body: pm.request.body }, function (err, res) {
+          pm.expect(res.code).to.eql(401);
+        });
+      });
+    language: text/javascript
+order: 1000

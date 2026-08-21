@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/presenca/registrar/{{jogadorId}}"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: json
+  content: |-
+    {
+      "data": "13/08/2026"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Registrar presença retorna 201', function () {
+        pm.response.to.have.status(201);
+      });
+    language: text/javascript
+order: 1000

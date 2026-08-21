@@ -1,0 +1,13 @@
+# Use this workspace to collaborate
+workspace:
+  id: 21a85527-5b52-4f99-8924-594043a36e56
+
+cloudResources:
+  collections:
+    ..\postman\collections\Massula Nerd House: 26ee8829-4899-4134-8004-762e582d7c68
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

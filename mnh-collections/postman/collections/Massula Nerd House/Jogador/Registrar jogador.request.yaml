@@ -1,0 +1,22 @@
+$kind: http-request
+url: "{{baseUrl}}/jogador/registrar"
+method: POST
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Jogador Teste",
+      "instagram": "@teste",
+      "telefone": "(11) 99999-9999"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Registrar jogador retorna 201', function () {
+        pm.response.to.have.status(201);
+        pm.collectionVariables.set('jogadorId', pm.response.json().id);
+      });
+    language: text/javascript
+order: 1000

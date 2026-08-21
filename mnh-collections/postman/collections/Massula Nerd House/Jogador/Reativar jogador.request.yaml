@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{baseUrl}}/jogador/reativar/{{jogadorId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{token}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Reativar jogador retorna 200', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 7000

@@ -1,0 +1,20 @@
+$kind: http-request
+url: "{{baseUrl}}/partida/{{partidaId}}/jogador/{{jogadorId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{token}}
+body:
+  type: json
+  content: |-
+    {
+      "posicao_final": 3,
+      "estatisticas": { "pontos": 78, "cor": "azul" }
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Atualizar resultado retorna 200', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 3000

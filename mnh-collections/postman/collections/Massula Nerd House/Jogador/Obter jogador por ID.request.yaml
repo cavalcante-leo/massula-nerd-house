@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/jogador/listar/{{jogadorId}}"
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Obter jogador retorna 200 com patente_calculada', function () {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json()).to.have.property('patente_calculada');
+      });
+    language: text/javascript
+order: 3000
