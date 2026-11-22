@@ -7,7 +7,10 @@
     "dev": "nodemon",
     "start": "node src/api/server.js",
     "lint": "eslint",
-    "lint:fix": "eslint --fix"
+    "lint:fix": "eslint --fix",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:status": "sequelize-cli db:migrate:status"
   },
   "keywords": [
     "node.js",
@@ -39,7 +42,8 @@
     "globals": "^17.4.0",
     "husky": "^4.2.3",
     "nodemon": "^2.0.2",
-    "prisma": "^7.9.1"
+    "prisma": "^7.9.1",
+    "sequelize-cli": "^6.6.5"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
