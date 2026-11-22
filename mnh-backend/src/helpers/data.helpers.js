@@ -54,6 +54,18 @@ const paraDataBanco = (valor) => {
     return null
 }
 
+// Instante ISO 8601 **com fuso** (`Z` ou `±hh:mm`), ex.: 2026-11-22T23:00:00.000Z.
+// Sem fuso, o JS interpreta no fuso do servidor (UTC no Render) e a partida fica 3h deslocada.
+// Retorna o Date ou null.
+const INSTANTE_ISO = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d(\.\d{1,3})?)?(Z|[+-](0\d|1[0-4]):[0-5]\d)$/
+const validarInstante = (valor) => {
+    if (typeof valor !== 'string') return null
+    const m = INSTANTE_ISO.exec(valor)
+    if (!m || !dataIsoValida(m[1])) return null
+    const d = new Date(valor)
+    return Number.isNaN(d.getTime()) ? null : d
+}
+
 const dataEhFutura = (dataString) => {
     if (!validarData(dataString)) return false
     return converterParaDate(dataString) > new Date()
@@ -78,6 +90,7 @@ module.exports = {
     formatarParaBanco,
     converterParaDate,
     paraDataBanco,
+    validarInstante,
     validarData,
     dataEhFutura,
     dataEhPassada,

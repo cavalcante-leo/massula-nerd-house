@@ -1,7 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  validarData, paraDataBanco, formatarParaBanco,
+  validarData, paraDataBanco, formatarParaBanco, validarInstante,
 } = require('../src/helpers/data.helpers');
 
 describe('validarData (dd/mm/aaaa)', () => {
@@ -34,5 +34,19 @@ describe('paraDataBanco', () => {
   it('rejeita datas impossíveis nos dois formatos', () => {
     assert.equal(paraDataBanco('31/02/2026'), null);
     assert.equal(paraDataBanco('2026-02-31'), null);
+  });
+});
+
+describe('validarInstante (ISO 8601 com fuso)', () => {
+  it('aceita Z e offset, devolvendo o instante correto', () => {
+    assert.equal(validarInstante('2026-11-22T23:00:00.000Z').toISOString(), '2026-11-22T23:00:00.000Z');
+    assert.equal(validarInstante('2026-11-22T20:00:00-03:00').toISOString(), '2026-11-22T23:00:00.000Z');
+    assert.equal(validarInstante('2026-11-22T20:00-03:00').toISOString(), '2026-11-22T23:00:00.000Z');
+  });
+
+  it('rejeita instante sem fuso, data impossível, só data e não-string', () => {
+    for (const v of ['2026-11-22T20:00', '2026-11-22T20:00:00', '2026-02-31T10:00:00Z', '2026-11-22', '2026-11-22T24:00:00Z', 'abc', null, 1763852400000]) {
+      assert.equal(validarInstante(v), null, String(v));
+    }
   });
 });

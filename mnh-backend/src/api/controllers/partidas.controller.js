@@ -1,5 +1,8 @@
 const partidasService = require('../services/partidas.service');
 const jogoService = require('../services/jogo.service');
+const { validarInstante } = require('../../helpers/data.helpers');
+
+const ERRO_JOGADA_EM = 'Campo jogada_em deve ser data e hora ISO 8601 com fuso (ex.: 2026-11-22T23:00:00.000Z ou 2026-11-22T20:00:00-03:00).';
 
 exports.criarPartida = async (req, res) => {
   try {
@@ -15,9 +18,9 @@ exports.criarPartida = async (req, res) => {
       return res.status(404).json({ erro: `Jogo com id ${id_jogo} não encontrado.` });
     }
 
-    const dataJogada = new Date(jogada_em);
-    if (Number.isNaN(dataJogada.getTime())) {
-      return res.status(400).json({ erro: 'Campo jogada_em deve ser uma data válida (ISO 8601).' });
+    const dataJogada = validarInstante(jogada_em);
+    if (!dataJogada) {
+      return res.status(400).json({ erro: ERRO_JOGADA_EM });
     }
 
     const partida = await partidasService.criarPartida({ id_jogo, nivel, jogada_em: dataJogada, criado_por });
@@ -54,8 +57,12 @@ exports.obterPartida = async (req, res) => {
 exports.atualizarPartida = async (req, res) => {
   try {
     const { id } = req.params;
-    const dados = req.body;
+    const dados = { ...req.body };
     const atualizado_por = req.usuario.id;
+    if (dados.jogada_em !== undefined) {
+      dados.jogada_em = validarInstante(dados.jogada_em);
+      if (!dados.jogada_em) return res.status(400).json({ erro: ERRO_JOGADA_EM });
+    }
     const partida = await partidasService.atualizarPartida(id, dados, atualizado_por);
     return res.json({ sucesso: true, partida });
   } catch (err) {
