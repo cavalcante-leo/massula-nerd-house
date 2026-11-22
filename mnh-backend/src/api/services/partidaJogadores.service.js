@@ -24,10 +24,18 @@ const adicionarParticipante = async (id_partida, id_jogador, dados = {}) => {
   });
 };
 
+// Lista branca: só o resultado do jogador é editável. id_partida/id_jogador vêm da URL e
+// não mudam (trocar o jogador = remover e adicionar).
+const CAMPOS_EDITAVEIS_PARTICIPANTE = ['posicao_final', 'estatisticas', 'vencedor'];
+
 const atualizarParticipante = async (id_partida, id_jogador, dados) => {
   const participante = await encontrarParticipante(id_partida, id_jogador);
   if (!participante) throw new Error('Participante não encontrado');
-  await participante.update(dados);
+  const update = {};
+  for (const campo of CAMPOS_EDITAVEIS_PARTICIPANTE) {
+    if (dados[campo] !== undefined) update[campo] = dados[campo];
+  }
+  await participante.update(update);
   return participante;
 };
 

@@ -81,6 +81,15 @@ exports.atualizarParticipante = async (req, res) => {
     const { id_partida, id_jogador } = req.params;
     const dados = req.body;
 
+    if (dados.posicao_final !== undefined && dados.posicao_final !== null) {
+      if (!Number.isInteger(Number(dados.posicao_final)) || Number(dados.posicao_final) < 1) {
+        return res.status(400).json({ erro: 'posicao_final deve ser inteiro >= 1.' });
+      }
+    }
+    if (dados.vencedor !== undefined && typeof dados.vencedor !== 'boolean') {
+      return res.status(400).json({ erro: 'vencedor deve ser true ou false.' });
+    }
+
     if (dados.estatisticas !== undefined) {
       const partida = await partidaService.encontrarPartida(id_partida);
       if (!partida) return res.status(404).json({ erro: 'Partida não encontrada.' });

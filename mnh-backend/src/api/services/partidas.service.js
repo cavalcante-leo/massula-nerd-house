@@ -2,6 +2,7 @@ const {
   Partida, Jogo, NivelJogo, PartidaResultado, Jogador, sequelize,
 } = require('../models');
 const { Op } = require('sequelize');
+const { ErroDominio } = require('../../helpers/erros');
 
 const encontrarPartida = async (id) => {
   return await Partida.findByPk(id, {
@@ -73,15 +74,28 @@ const atualizarPartida = async (id, dados, atualizado_por) => {
   const partida = await encontrarPartida(id);
   if (!partida) throw new Error('Partida não encontrada');
 
-  const update = { ...dados, atualizado_por };
-  delete update.nivel;
-  delete update.id_nivel_jogo;
+  // Lista branca: só estes campos vêm do cliente. criado_por, ativo, criado_em etc. nunca.
+  const update = { atualizado_por };
+  if (dados.jogada_em !== undefined) update.jogada_em = dados.jogada_em;
+  if (dados.id_jogo !== undefined) update.id_jogo = dados.id_jogo;
 
-  const idJogo = dados.id_jogo ?? partida.id_jogo;
-  if (dados.nivel !== undefined) {
+  const idJogo = update.id_jogo ?? partida.id_jogo;
+  const trocouJogo = Number(idJogo) !== partida.id_jogo;
+  if (trocouJogo) {
+    // Os participantes têm nível e estatísticas do jogo atual; trocar o jogo os deixaria
+    // inconsistentes. Para corrigir o cadastro, remova os participantes antes.
+    const participantes = await PartidaResultado.count({ where: { id_partida: partida.id } });
+    if (participantes > 0) {
+      throw new ErroDominio(409, 'Não é possível trocar o jogo de uma partida que já tem participantes. Remova os participantes antes.');
+    }
+  }
+  // Trocar de jogo sem informar o nível mantém o número do nível, mas no catálogo do novo
+  // jogo: id_nivel_jogo nunca pode apontar para um nível de outro jogo.
+  const nivel = dados.nivel ?? (trocouJogo ? partida.nivelJogo?.nivel : undefined);
+  if (nivel !== undefined) {
     const [nivelJogo] = await NivelJogo.findOrCreate({
-      where: { id_jogo: idJogo, nivel: dados.nivel },
-      defaults: { id_jogo: idJogo, nivel: dados.nivel, criado_por: atualizado_por },
+      where: { id_jogo: idJogo, nivel },
+      defaults: { id_jogo: idJogo, nivel, criado_por: atualizado_por },
     });
     update.id_nivel_jogo = nivelJogo.id;
   }

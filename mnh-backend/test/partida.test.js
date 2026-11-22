@@ -102,3 +102,77 @@ describe('remover partida', () => {
     assert.equal(linhas[0].n, 0);
   });
 });
+
+describe('lista branca nas atualizações', () => {
+  let jogo;
+  let jogo2;
+  let j1;
+  let j2;
+  let partida;
+
+  before(async () => {
+    const sufixo = Date.now();
+    jogo = (await amb.req('POST', '/jogo/registrar', { nome: `Jogo LB ${sufixo}` }, token)).json;
+    jogo2 = (await amb.req('POST', '/jogo/registrar', { nome: `Jogo LB2 ${sufixo}` }, token)).json;
+    for (const id of [jogo.id, jogo2.id]) {
+      await amb.req('POST', '/nivel-jogo/registrar', { id_jogo: id, nivel: 2 }, token);
+    }
+    j1 = (await amb.req('POST', '/jogador/registrar', { nome: `LB1 ${sufixo}` }, token)).json;
+    j2 = (await amb.req('POST', '/jogador/registrar', { nome: `LB2 ${sufixo}` }, token)).json;
+    await amb.req('PUT', `/jogador-nivel/jogador/${j1.id}/jogo/${jogo.id}`, { nivel: 2 }, token);
+    partida = (await amb.req('POST', '/partida/registrar', { id_jogo: jogo.id, nivel: 2, jogada_em: '2026-11-21T22:00:00Z' }, token)).json;
+    await amb.req('POST', `/partida/${partida.id}/jogador/${j1.id}`, { posicao_final: 1 }, token);
+  });
+
+  const linhaPartida = async () => {
+    const [[l]] = await amb.sequelize.query(
+      'SELECT criado_em, criado_por, ativo, id_jogo, id_nivel_jogo FROM partida WHERE id = :id',
+      { replacements: { id: partida.id } },
+    );
+    return l;
+  };
+
+  it('PUT de partida ignora criado_em, criado_por e ativo', async () => {
+    const antes = await linhaPartida();
+    const r = await amb.req('PUT', `/partida/atualizar/${partida.id}`, {
+      criado_em: '2000-01-01T00:00:00Z', criado_por: null, ativo: false, id: 999999,
+    }, token);
+    assert.equal(r.status, 200);
+    const depois = await linhaPartida();
+    assert.equal(depois.criado_em.toISOString(), antes.criado_em.toISOString());
+    assert.equal(depois.criado_por, antes.criado_por);
+    assert.equal(depois.ativo, antes.ativo);
+  });
+
+  it('trocar o jogo de partida com participantes responde 409 e não altera nada', async () => {
+    const r = await amb.req('PUT', `/partida/atualizar/${partida.id}`, { id_jogo: jogo2.id }, token);
+    assert.equal(r.status, 409);
+    assert.equal((await linhaPartida()).id_jogo, jogo.id);
+  });
+
+  it('trocar de jogo (sem participantes) sem nível leva o mesmo número de nível para o catálogo do novo jogo', async () => {
+    const vazia = (await amb.req('POST', '/partida/registrar', { id_jogo: jogo.id, nivel: 2, jogada_em: '2026-11-21T23:00:00Z' }, token)).json;
+    const r = await amb.req('PUT', `/partida/atualizar/${vazia.id}`, { id_jogo: jogo2.id }, token);
+    assert.equal(r.status, 200);
+    const p = await amb.req('GET', `/partida/listar/${vazia.id}`, undefined, token);
+    assert.equal(p.json.id_jogo, jogo2.id);
+    assert.equal(p.json.nivelJogo.nivel, 2);
+    const [[nivel]] = await amb.sequelize.query('SELECT id_jogo FROM nivel_jogo WHERE id = :id', { replacements: { id: p.json.id_nivel_jogo } });
+    assert.equal(nivel.id_jogo, jogo2.id);
+  });
+
+  it('PUT de participante não troca o jogador nem a partida', async () => {
+    const r = await amb.req('PUT', `/partida/${partida.id}/jogador/${j1.id}`, {
+      id_jogador: j2.id, id_partida: 999999, posicao_final: 2,
+    }, token);
+    assert.equal(r.status, 200);
+    assert.equal(r.json.participante.id_jogador, j1.id);
+    assert.equal(r.json.participante.id_partida, partida.id);
+    assert.equal(r.json.participante.posicao_final, 2);
+  });
+
+  it('PUT de participante valida posicao_final e vencedor', async () => {
+    assert.equal((await amb.req('PUT', `/partida/${partida.id}/jogador/${j1.id}`, { posicao_final: 0 }, token)).status, 400);
+    assert.equal((await amb.req('PUT', `/partida/${partida.id}/jogador/${j1.id}`, { vencedor: 'sim' }, token)).status, 400);
+  });
+});

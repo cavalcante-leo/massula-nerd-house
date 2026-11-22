@@ -1,6 +1,7 @@
 const partidasService = require('../services/partidas.service');
 const jogoService = require('../services/jogo.service');
 const { validarInstante, intervaloDoPeriodo } = require('../../helpers/data.helpers');
+const { responderErroDominio } = require('../../helpers/erros');
 
 const ERRO_JOGADA_EM = 'Campo jogada_em deve ser data e hora ISO 8601 com fuso (ex.: 2026-11-22T23:00:00.000Z ou 2026-11-22T20:00:00-03:00).';
 
@@ -71,6 +72,7 @@ exports.atualizarPartida = async (req, res) => {
     const partida = await partidasService.atualizarPartida(id, dados, atualizado_por);
     return res.json({ sucesso: true, partida });
   } catch (err) {
+    if (responderErroDominio(res, err)) return undefined;
     return res.status(500).json({ erro: err.message });
   }
 };
