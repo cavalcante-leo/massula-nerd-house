@@ -1,6 +1,7 @@
 const presencasService = require('../services/presenca.service');
 const dataHelpers = require('../../helpers/data.helpers');
 const jogadorService = require('../services/jogador.service');
+const { responderErro } = require('../../helpers/erros');
 
 exports.registrarPresenca = async (req, res) => {
   try {
@@ -28,7 +29,7 @@ exports.registrarPresenca = async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao registrar presença.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar presença.');
   }
 };
 
@@ -44,6 +45,6 @@ exports.listarPresencas = async (req, res) => {
     const presencas = await presencasService.listarPresencasPorPeriodo(dataInicio, dataFim);
     return res.json(presencas);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao listar presenças.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao listar presenças.');
   }
 };

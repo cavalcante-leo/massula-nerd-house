@@ -1,7 +1,7 @@
 const partidasService = require('../services/partidas.service');
-const jogoService = require('../services/jogo.service');
+const { ehIdValido } = require('../middlewares/validarIds');
 const { validarInstante, intervaloDoPeriodo } = require('../../helpers/data.helpers');
-const { responderErroDominio } = require('../../helpers/erros');
+const { responderErro } = require('../../helpers/erros');
 
 const ERRO_JOGADA_EM = 'Campo jogada_em deve ser data e hora ISO 8601 com fuso (ex.: 2026-11-22T23:00:00.000Z ou 2026-11-22T20:00:00-03:00).';
 
@@ -14,9 +14,11 @@ exports.criarPartida = async (req, res) => {
       return res.status(400).json({ erro: 'Campos obrigatórios: id_jogo, nivel, jogada_em.' });
     }
 
-    const jogo = await jogoService.encontrarJogo(id_jogo);
-    if (!jogo) {
-      return res.status(404).json({ erro: `Jogo com id ${id_jogo} não encontrado.` });
+    if (!ehIdValido(String(id_jogo))) {
+      return res.status(400).json({ erro: 'id_jogo deve ser um inteiro positivo.' });
+    }
+    if (!Number.isInteger(Number(nivel)) || Number(nivel) < 1) {
+      return res.status(400).json({ erro: 'nivel deve ser um inteiro >= 1.' });
     }
 
     const dataJogada = validarInstante(jogada_em);
@@ -27,17 +29,21 @@ exports.criarPartida = async (req, res) => {
     const partida = await partidasService.criarPartida({ id_jogo, nivel, jogada_em: dataJogada, criado_por });
     return res.status(201).json(partida);
   } catch (err) {
-    if (responderErroDominio(res, err)) return undefined;
     if (err.name === 'SequelizeForeignKeyConstraintError') {
       return res.status(409).json({ erro: 'Violação de chave estrangeira. Verifique se id_jogo existe.' });
     }
-    return res.status(500).json({ erro: 'Erro ao criar partida.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao criar partida.');
   }
 };
 
 exports.listarPartidas = async (req, res) => {
   try {
     const filtros = req.query;
+    for (const campo of ['id_jogo', 'id_nivel_jogo']) {
+      if (filtros[campo] !== undefined && !ehIdValido(filtros[campo])) {
+        return res.status(400).json({ erro: `${campo} deve ser um inteiro positivo.` });
+      }
+    }
     // Dias (dd/mm/aaaa ou AAAA-MM-DD) no fuso do clube; o dia final entra inteiro.
     const periodo = intervaloDoPeriodo(filtros.jogada_em_inicio, filtros.jogada_em_fim);
     if (!periodo) {
@@ -46,7 +52,7 @@ exports.listarPartidas = async (req, res) => {
     const partidas = await partidasService.listarPartidas(filtros, periodo);
     return res.json(partidas);
   } catch (err) {
-    return res.status(500).json({ erro: err.message });
+    return responderErro(res, err, 'Erro ao listar partidas.');
   }
 };
 
@@ -57,7 +63,7 @@ exports.obterPartida = async (req, res) => {
     if (!partida) return res.status(404).json({ erro: 'Partida não encontrada' });
     return res.json(partida);
   } catch (err) {
-    return res.status(500).json({ erro: err.message });
+    return responderErro(res, err, 'Erro ao buscar partida.');
   }
 };
 
@@ -66,6 +72,12 @@ exports.atualizarPartida = async (req, res) => {
     const { id } = req.params;
     const dados = { ...req.body };
     const atualizado_por = req.usuario.id;
+    if (dados.id_jogo !== undefined && !ehIdValido(String(dados.id_jogo))) {
+      return res.status(400).json({ erro: 'id_jogo deve ser um inteiro positivo.' });
+    }
+    if (dados.nivel !== undefined && (!Number.isInteger(Number(dados.nivel)) || Number(dados.nivel) < 1)) {
+      return res.status(400).json({ erro: 'nivel deve ser um inteiro >= 1.' });
+    }
     if (dados.jogada_em !== undefined) {
       dados.jogada_em = validarInstante(dados.jogada_em);
       if (!dados.jogada_em) return res.status(400).json({ erro: ERRO_JOGADA_EM });
@@ -73,8 +85,7 @@ exports.atualizarPartida = async (req, res) => {
     const partida = await partidasService.atualizarPartida(id, dados, atualizado_por);
     return res.json({ sucesso: true, partida });
   } catch (err) {
-    if (responderErroDominio(res, err)) return undefined;
-    return res.status(500).json({ erro: err.message });
+    return responderErro(res, err, 'Erro ao atualizar partida.');
   }
 };
 
@@ -84,7 +95,7 @@ exports.deletarPartida = async (req, res) => {
     await partidasService.removerPartida(id);
     return res.json({ sucesso: true });
   } catch (err) {
-    return res.status(500).json({ erro: err.message });
+    return responderErro(res, err, 'Erro ao remover partida.');
   }
 };
 
@@ -94,6 +105,6 @@ exports.rankingPartida = async (req, res) => {
     const ranking = await partidasService.obterRankingPartida(id);
     return res.json(ranking);
   } catch (err) {
-    return res.status(500).json({ erro: err.message });
+    return responderErro(res, err, 'Erro ao obter ranking da partida.');
   }
 };

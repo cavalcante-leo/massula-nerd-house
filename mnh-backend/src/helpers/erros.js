@@ -15,4 +15,15 @@ const responderErroDominio = (res, err) => {
   return true;
 };
 
-module.exports = { ErroDominio, responderErroDominio };
+/**
+ * Catch padrão dos controllers: ErroDominio vira o status e a mensagem dele; qualquer
+ * outro erro é logado no servidor e o cliente recebe só `mensagem500` (nunca err.message,
+ * que pode expor SQL, constraints e detalhes do Postgres).
+ */
+const responderErro = (res, err, mensagem500) => {
+  if (responderErroDominio(res, err)) return undefined;
+  console.error(`${mensagem500}`, err);
+  return res.status(500).json({ erro: mensagem500 });
+};
+
+module.exports = { ErroDominio, responderErroDominio, responderErro };

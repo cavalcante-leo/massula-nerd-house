@@ -1,5 +1,6 @@
 const { Jogo, Partida } = require('../models');
 const jogoServices = require('../services/jogo.service');
+const { responderErro } = require('../../helpers/erros');
 
 const validarConfigCampos = (config) => {
   if (!Array.isArray(config)) return 'config_campos deve ser um array.';
@@ -46,7 +47,7 @@ exports.registrar = async (req, res) => {
       criado_por: jogo.criado_por,
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao registrar jogo.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar jogo.');
   }
 };
 
@@ -68,7 +69,7 @@ exports.listar = async (req, res) => {
 
     return res.status(200).json(jogos);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao listar jogos.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao listar jogos.');
   }
 };
 
@@ -90,7 +91,7 @@ exports.obterPorID = async (req, res) => {
 
     return res.status(200).json(jogoJson);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao buscar jogo.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao buscar jogo.');
   }
 };
 
@@ -129,7 +130,7 @@ exports.atualizar = async (req, res) => {
       }
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao atualizar jogo.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao atualizar jogo.');
   }
 };
 
@@ -152,7 +153,7 @@ exports.desativar = async (req, res) => {
       return res.status(409).json({ sucesso: 'Jogo já está desativado.' });
     }
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao desativar jogo.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao desativar jogo.');
   }
 };
 
@@ -175,6 +176,6 @@ exports.reativar = async (req, res) => {
       return res.status(409).json({ sucesso: 'Jogo já está ativo.' });
     }
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao reativar jogo.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao reativar jogo.');
   }
 };

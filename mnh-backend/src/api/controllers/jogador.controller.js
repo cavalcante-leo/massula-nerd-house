@@ -3,6 +3,7 @@ const { fn, col } = require('sequelize');
 const dataHelpers = require('../../helpers/data.helpers');
 const jogadorServices = require('../services/jogador.service');
 const presencaService = require('../services/presenca.service');
+const { responderErro } = require('../../helpers/erros');
 
 // CREATE
 exports.registrar = async (req, res) => {
@@ -30,7 +31,7 @@ exports.registrar = async (req, res) => {
       criado_por: criado_por
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao registrar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar jogador.');
   }
 };
 
@@ -70,7 +71,7 @@ exports.listar = async (req, res) => {
 
     return res.status(200).json(resposta);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao listar jogadores.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao listar jogadores.');
   }
 };
 
@@ -94,7 +95,7 @@ exports.obterPorID = async (req, res) => {
 
     return res.status(200).json(jogadorJson);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao buscar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao buscar jogador.');
   }
 };
 
@@ -128,7 +129,7 @@ exports.atualizar = async (req, res) => {
       }
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao atualizar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao atualizar jogador.');
   }
 };
 
@@ -151,7 +152,7 @@ exports.desativar = async (req, res) => {
       return res.status(409).json({ sucesso: 'Jogador já está desativado.' });
     }
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao desativar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao desativar jogador.');
   }
 };
 
@@ -174,7 +175,7 @@ exports.reativar = async (req, res) => {
       return res.status(409).json({ sucesso: 'Jogador já está ativo.' });
     }
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao reativar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao reativar jogador.');
   }
 };
 
@@ -206,6 +207,6 @@ exports.registrarPresenca = async (req, res) => {
       }
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao registrar presença.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar presença.');
   }
 };

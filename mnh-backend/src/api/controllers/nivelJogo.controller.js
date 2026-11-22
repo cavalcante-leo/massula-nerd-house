@@ -1,5 +1,6 @@
 const nivelJogoService = require('../services/nivelJogo.service');
 const { Jogo } = require('../models');
+const { responderErro } = require('../../helpers/erros');
 
 const validarNivel = (nivel) => Number.isInteger(Number(nivel)) && Number(nivel) >= 1;
 
@@ -53,7 +54,7 @@ exports.registrar = async (req, res) => {
     if (err.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ erro: 'Já existe um nível com esse número para este jogo.' });
     }
-    return res.status(500).json({ erro: 'Erro ao registrar nível.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar nível.');
   }
 };
 
@@ -73,7 +74,7 @@ exports.listarPorJogo = async (req, res) => {
     const niveis = await nivelJogoService.encontrarNiveisPorJogo(id_jogo, filtros);
     return res.status(200).json(niveis);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao listar níveis.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao listar níveis.');
   }
 };
 
@@ -87,7 +88,7 @@ exports.obterPorID = async (req, res) => {
     }
     return res.status(200).json(nivel);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao buscar nível.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao buscar nível.');
   }
 };
 
@@ -145,7 +146,7 @@ exports.atualizar = async (req, res) => {
     if (err.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ erro: 'Já existe um nível com esse número para este jogo.' });
     }
-    return res.status(500).json({ erro: 'Erro ao atualizar nível.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao atualizar nível.');
   }
 };
 
@@ -172,7 +173,7 @@ exports.desativar = async (req, res) => {
     await nivelJogoService.atualizarNivel(id, { ativo: false }, req.usuario.id);
     return res.status(200).json({ sucesso: 'Nível desativado com sucesso.' });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao desativar nível.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao desativar nível.');
   }
 };
 
@@ -192,6 +193,6 @@ exports.reativar = async (req, res) => {
     await nivelJogoService.atualizarNivel(id, { ativo: true }, req.usuario.id);
     return res.status(200).json({ sucesso: 'Nível reativado com sucesso.' });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao reativar nível.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao reativar nível.');
   }
 };

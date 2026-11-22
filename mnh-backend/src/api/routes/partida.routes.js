@@ -4,6 +4,9 @@ const router = express.Router();
 const partidasController = require('../controllers/partidas.controller');
 const partidaJogadoresController = require('../controllers/partidaJogadores.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { validarIdsDaRota } = require('../middlewares/validarIds');
+
+validarIdsDaRota(router);
 
 router.post('/registrar', authMiddleware, partidasController.criarPartida);
 router.get('/listar', authMiddleware, partidasController.listarPartidas);

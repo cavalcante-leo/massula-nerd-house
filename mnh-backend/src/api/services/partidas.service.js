@@ -73,7 +73,7 @@ const criarPartida = async (dados) => {
 
 const atualizarPartida = async (id, dados, atualizado_por) => {
   const partida = await encontrarPartida(id);
-  if (!partida) throw new Error('Partida não encontrada');
+  if (!partida) throw new ErroDominio(404, 'Partida não encontrada.');
 
   // Lista branca: só estes campos vêm do cliente. criado_por, ativo, criado_em etc. nunca.
   const update = { atualizado_por };
@@ -108,7 +108,7 @@ const atualizarPartida = async (id, dados, atualizado_por) => {
 const removerPartida = async (id) => {
   await sequelize.transaction(async (transaction) => {
     const partida = await Partida.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
-    if (!partida) throw new Error('Partida não encontrada');
+    if (!partida) throw new ErroDominio(404, 'Partida não encontrada.');
     await PartidaResultado.destroy({ where: { id_partida: partida.id }, transaction });
     await partida.destroy({ transaction });
   });

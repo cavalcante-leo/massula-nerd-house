@@ -1,4 +1,5 @@
 const { PartidaResultado, Jogador } = require('../models');
+const { ErroDominio } = require('../../helpers/erros');
 
 const encontrarParticipante = async (id_partida, id_jogador) => {
   return await PartidaResultado.findOne({ where: { id_partida, id_jogador } });
@@ -14,7 +15,7 @@ const listarParticipantesDaPartida = async (id_partida) => {
 
 const adicionarParticipante = async (id_partida, id_jogador, dados = {}) => {
   const existe = await encontrarParticipante(id_partida, id_jogador);
-  if (existe) throw new Error('Jogador já está na partida');
+  if (existe) throw new ErroDominio(409, 'Jogador já está na partida.');
   return await PartidaResultado.create({
     id_partida,
     id_jogador,
@@ -30,7 +31,7 @@ const CAMPOS_EDITAVEIS_PARTICIPANTE = ['posicao_final', 'estatisticas', 'vencedo
 
 const atualizarParticipante = async (id_partida, id_jogador, dados) => {
   const participante = await encontrarParticipante(id_partida, id_jogador);
-  if (!participante) throw new Error('Participante não encontrado');
+  if (!participante) throw new ErroDominio(404, 'Participante não encontrado.');
   const update = {};
   for (const campo of CAMPOS_EDITAVEIS_PARTICIPANTE) {
     if (dados[campo] !== undefined) update[campo] = dados[campo];
@@ -41,7 +42,7 @@ const atualizarParticipante = async (id_partida, id_jogador, dados) => {
 
 const removerParticipante = async (id_partida, id_jogador) => {
   const participante = await encontrarParticipante(id_partida, id_jogador);
-  if (!participante) throw new Error('Participante não encontrado');
+  if (!participante) throw new ErroDominio(404, 'Participante não encontrado.');
   await participante.destroy();
 };
 

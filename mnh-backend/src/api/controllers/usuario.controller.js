@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const { Usuario } = require('../models');
 const { Op } = require('sequelize');
+const { responderErro } = require('../../helpers/erros');
 
 const TIPOS_VALIDOS = ['admin', 'superadmin'];
 const SENHA_MIN = 8;
@@ -51,7 +52,7 @@ exports.registrar = async (req, res) => {
       ativo: usuario.ativo,
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao registrar usuário.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar usuário.');
   }
 };
 
@@ -76,7 +77,7 @@ exports.listar = async (req, res) => {
     });
     return res.status(200).json(usuarios);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao listar usuários.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao listar usuários.');
   }
 };
 
@@ -98,7 +99,7 @@ exports.obterPorID = async (req, res) => {
     }
     return res.status(200).json(usuario);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao buscar usuário.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao buscar usuário.');
   }
 };
 
@@ -174,7 +175,7 @@ exports.atualizar = async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao atualizar usuário.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao atualizar usuário.');
   }
 };
 
@@ -206,7 +207,7 @@ exports.desativar = async (req, res) => {
     await usuario.save();
     return res.status(200).json({ sucesso: 'Usuário desativado com sucesso.' });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao desativar usuário.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao desativar usuário.');
   }
 };
 
@@ -234,6 +235,6 @@ exports.reativar = async (req, res) => {
     await usuario.save();
     return res.status(200).json({ sucesso: 'Usuário reativado com sucesso.' });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao reativar usuário.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao reativar usuário.');
   }
 };
