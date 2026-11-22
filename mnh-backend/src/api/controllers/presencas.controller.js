@@ -48,3 +48,19 @@ exports.listarPresencas = async (req, res) => {
     return responderErro(res, err, 'Erro ao listar presenças.');
   }
 };
+
+exports.removerPresenca = async (req, res) => {
+  try {
+    const { presenca, totalPresencas } = await presencasService.removerPresenca(req.params.id, req.usuario.id);
+    return res.status(200).json({
+      sucesso: 'Presença removida com sucesso.',
+      id: presenca.id,
+      id_jogador: presenca.id_jogador,
+      data_presenca: presenca.data_presenca,
+      presencas_total: totalPresencas,
+      patente: jogadorService.calcularPatente(totalPresencas),
+    });
+  } catch (err) {
+    return responderErro(res, err, 'Erro ao remover presença.');
+  }
+};

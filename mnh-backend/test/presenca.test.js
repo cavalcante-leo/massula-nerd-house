@@ -133,3 +133,51 @@ describe('presenças inativas (removidas) não contam', () => {
     assert.equal(dup.status, 409);
   });
 });
+
+describe('remover presença (soft delete)', () => {
+  let jogador;
+  let presenca;
+
+  before(async () => {
+    jogador = (await amb.req('POST', '/jogador/registrar', { nome: `Remover ${Date.now()}` }, token)).json;
+    for (const data of ['05/09/2026', '06/09/2026']) {
+      const r = await amb.req('POST', `/presenca/registrar/${jogador.id}`, { data }, token);
+      assert.equal(r.status, 201);
+      if (data === '06/09/2026') presenca = r.json.presenca;
+    }
+  });
+
+  it('marca ativo=false, grava atualizado_por e devolve o novo total', async () => {
+    const r = await amb.req('DELETE', `/presenca/remover/${presenca.id}`, undefined, token);
+    assert.equal(r.status, 200);
+    assert.equal(r.json.id, presenca.id);
+    assert.equal(r.json.presencas_total, 1);
+    assert.equal(r.json.patente, 1);
+
+    const [[linha]] = await amb.sequelize.query(
+      'SELECT ativo, atualizado_por FROM jogador_presenca WHERE id = :id',
+      { replacements: { id: presenca.id } },
+    );
+    assert.equal(linha.ativo, false);
+    assert.ok(linha.atualizado_por, 'atualizado_por preenchido');
+
+    const detalhe = (await amb.req('GET', `/jogador/listar/${jogador.id}`, undefined, token)).json;
+    assert.equal(detalhe.total_presencas, 1);
+  });
+
+  it('remover de novo, id inexistente ou inválido não dá 500', async () => {
+    assert.equal((await amb.req('DELETE', `/presenca/remover/${presenca.id}`, undefined, token)).status, 404);
+    assert.equal((await amb.req('DELETE', '/presenca/remover/999999', undefined, token)).status, 404);
+    assert.equal((await amb.req('DELETE', '/presenca/remover/abc', undefined, token)).status, 400);
+  });
+
+  it('exige autenticação', async () => {
+    assert.equal((await amb.req('DELETE', `/presenca/remover/${presenca.id}`)).status, 401);
+  });
+
+  it('registrar o dia removido reativa a mesma linha', async () => {
+    const r = await amb.req('POST', `/presenca/registrar/${jogador.id}`, { data: '06/09/2026' }, token);
+    assert.equal(r.status, 201);
+    assert.equal(r.json.presenca.id, presenca.id);
+  });
+});

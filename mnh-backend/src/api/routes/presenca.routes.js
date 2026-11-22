@@ -9,5 +9,6 @@ validarIdsDaRota(router);
 
 router.post('/registrar/:id_jogador', authMiddleware, presencasController.registrarPresenca);
 router.get('/listar', authMiddleware, presencasController.listarPresencas);
+router.delete('/remover/:id', authMiddleware, presencasController.removerPresenca);
 
 module.exports = router;

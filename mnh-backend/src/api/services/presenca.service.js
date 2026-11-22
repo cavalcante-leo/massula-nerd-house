@@ -2,6 +2,7 @@ const { JogadorPresenca, Jogador, sequelize } = require('../models');
 const { Op, UniqueConstraintError } = require('sequelize');
 const dataHelpers = require('../../helpers/data.helpers');
 const jogadorService = require('./jogador.service');
+const { ErroDominio } = require('../../helpers/erros');
 
 // Presença removida fica com ativo = false (soft delete) e não conta para total nem patente.
 const contarPresencasPorJogador = async (id_jogador, transaction = null) => {
@@ -83,7 +84,20 @@ const listarPresencasPorPeriodo = async (inicio, fim) => {
   });
 };
 
+// Soft delete: a presença sai da contagem e da patente, mas a linha fica (auditoria) e
+// pode ser reativada registrando o mesmo dia de novo.
+const removerPresenca = async (id, atualizado_por) => {
+  return await sequelize.transaction(async (transaction) => {
+    const presenca = await JogadorPresenca.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!presenca || !presenca.ativo) throw new ErroDominio(404, 'Presença não encontrada.');
+    await presenca.update({ ativo: false, atualizado_por }, { transaction });
+    const totalPresencas = await contarPresencasPorJogador(presenca.id_jogador, transaction);
+    return { presenca, totalPresencas };
+  });
+};
+
 module.exports = {
+  removerPresenca,
   contarPresencasPorJogador,
   verificarPresencaNaData,
   registrarNovaPresenca,
