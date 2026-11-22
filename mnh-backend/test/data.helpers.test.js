@@ -1,7 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  validarData, paraDataBanco, formatarParaBanco, validarInstante,
+  validarData, paraDataBanco, formatarParaBanco, validarInstante, intervaloDoPeriodo, hojeNoClube,
 } = require('../src/helpers/data.helpers');
 
 describe('validarData (dd/mm/aaaa)', () => {
@@ -48,5 +48,29 @@ describe('validarInstante (ISO 8601 com fuso)', () => {
     for (const v of ['2026-11-22T20:00', '2026-11-22T20:00:00', '2026-02-31T10:00:00Z', '2026-11-22', '2026-11-22T24:00:00Z', 'abc', null, 1763852400000]) {
       assert.equal(validarInstante(v), null, String(v));
     }
+  });
+});
+
+describe('fuso do clube (-03:00)', () => {
+  it('hojeNoClube: 01:00 UTC ainda é o dia anterior em Brasília', () => {
+    assert.equal(hojeNoClube(new Date('2026-11-23T01:00:00Z')), '2026-11-22');
+    assert.equal(hojeNoClube(new Date('2026-11-23T03:00:00Z')), '2026-11-23');
+  });
+
+  it('intervaloDoPeriodo: dias viram [00:00 BRT do início, 00:00 BRT do dia seguinte ao fim)', () => {
+    const p = intervaloDoPeriodo('2026-11-01', '01/11/2026');
+    assert.equal(p.desde.toISOString(), '2026-11-01T03:00:00.000Z');
+    assert.equal(p.ateExclusivo.toISOString(), '2026-11-02T03:00:00.000Z');
+  });
+
+  it('intervaloDoPeriodo: limites opcionais, instante com fuso e virada de mês/ano', () => {
+    assert.deepEqual(intervaloDoPeriodo(undefined, undefined), { desde: null, ateExclusivo: null });
+    assert.equal(intervaloDoPeriodo(undefined, '31/12/2026').ateExclusivo.toISOString(), '2027-01-01T03:00:00.000Z');
+    assert.equal(intervaloDoPeriodo('2026-11-01T10:00:00Z').desde.toISOString(), '2026-11-01T10:00:00.000Z');
+  });
+
+  it('intervaloDoPeriodo: limite inválido devolve null', () => {
+    assert.equal(intervaloDoPeriodo('2026-02-31', undefined), null);
+    assert.equal(intervaloDoPeriodo(undefined, '2026-11-01T10:00'), null);
   });
 });

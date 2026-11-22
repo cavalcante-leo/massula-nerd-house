@@ -10,12 +10,15 @@ const encontrarPartida = async (id) => {
   });
 };
 
-const listarPartidas = async (filtros = {}) => {
+// `periodo`: `{ desde, ateExclusivo }` de `intervaloDoPeriodo` (data.helpers), ou null.
+const listarPartidas = async (filtros = {}, periodo = null) => {
   const where = {};
   if (filtros.id_jogo) where.id_jogo = filtros.id_jogo;
   if (filtros.id_nivel_jogo) where.id_nivel_jogo = filtros.id_nivel_jogo;
-  if (filtros.jogada_em_inicio && filtros.jogada_em_fim) {
-    where.jogada_em = { [Op.between]: [filtros.jogada_em_inicio, filtros.jogada_em_fim] };
+  if (periodo?.desde || periodo?.ateExclusivo) {
+    where.jogada_em = {};
+    if (periodo.desde) where.jogada_em[Op.gte] = periodo.desde;
+    if (periodo.ateExclusivo) where.jogada_em[Op.lt] = periodo.ateExclusivo;
   }
   const partidas = await Partida.findAll({
     where,

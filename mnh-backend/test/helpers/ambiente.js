@@ -20,7 +20,13 @@ const criarRequisicao = (base) => async (method, url, body, token) => {
  * Use em `before`, e chame `encerrar()` no `after`.
  * Os tokens são gerados direto (sem passar pela rota de login e seu rate limit).
  */
+let jaPreparado = false;
+
 const prepararAmbiente = async () => {
+  // O app e a conexão são módulos únicos por processo: depois do `encerrar()` não voltam.
+  if (jaPreparado) throw new Error('prepararAmbiente() só pode ser chamado uma vez por arquivo de teste.');
+  jaPreparado = true;
+
   const { TEST_DATABASE_URL, TEST_SUPERADMIN_ID } = process.env;
   if (!TEST_DATABASE_URL || !TEST_SUPERADMIN_ID) {
     throw new Error('Rode os testes com `npm test`: ele cria o banco descartável e define o ambiente.');

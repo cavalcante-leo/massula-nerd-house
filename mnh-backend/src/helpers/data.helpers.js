@@ -66,9 +66,55 @@ const validarInstante = (valor) => {
     return Number.isNaN(d.getTime()) ? null : d
 }
 
+// Fuso do clube. O Brasil não tem horário de verão desde 2019, então o offset é fixo.
+// "Dia" (presença, filtros de período) é sempre o dia de calendário neste fuso.
+const FUSO_CLUBE = '-03:00'
+const OFFSET_CLUBE_MS = -3 * 60 * 60 * 1000
+
+// Hoje no fuso do clube, como AAAA-MM-DD.
+const hojeNoClube = (agora = new Date()) => new Date(agora.getTime() + OFFSET_CLUBE_MS).toISOString().slice(0, 10)
+
+const diaSeguinte = (diaBanco) => {
+    const d = new Date(`${diaBanco}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + 1)
+    return d.toISOString().slice(0, 10)
+}
+
+const inicioDoDiaNoClube = (diaBanco) => new Date(`${diaBanco}T00:00:00${FUSO_CLUBE}`)
+
+/**
+ * Período para filtrar instantes (ex.: partida.jogada_em).
+ * Cada limite aceita um dia (dd/mm/aaaa ou AAAA-MM-DD, interpretado no fuso do clube)
+ * ou um instante ISO com fuso. O dia final entra inteiro.
+ *
+ * Retorna `{ desde, ateExclusivo }` (Dates ou null = sem limite) ou `null` se algum
+ * limite informado for inválido.
+ */
+const intervaloDoPeriodo = (inicio, fim) => {
+    let desde = null
+    let ateExclusivo = null
+    if (inicio !== undefined && inicio !== '') {
+        const dia = paraDataBanco(inicio)
+        desde = dia ? inicioDoDiaNoClube(dia) : validarInstante(inicio)
+        if (!desde) return null
+    }
+    if (fim !== undefined && fim !== '') {
+        const dia = paraDataBanco(fim)
+        if (dia) {
+            ateExclusivo = inicioDoDiaNoClube(diaSeguinte(dia))
+        } else {
+            const instante = validarInstante(fim)
+            if (!instante) return null
+            ateExclusivo = new Date(instante.getTime() + 1)
+        }
+    }
+    return { desde, ateExclusivo }
+}
+
+// Data dd/mm/aaaa depois de hoje, no fuso do clube (não no fuso do servidor nem em UTC).
 const dataEhFutura = (dataString) => {
     if (!validarData(dataString)) return false
-    return converterParaDate(dataString) > new Date()
+    return formatarParaBanco(dataString) > hojeNoClube()
 }
 
 const dataEhPassada = (dataString) => {
@@ -91,6 +137,9 @@ module.exports = {
     converterParaDate,
     paraDataBanco,
     validarInstante,
+    FUSO_CLUBE,
+    hojeNoClube,
+    intervaloDoPeriodo,
     validarData,
     dataEhFutura,
     dataEhPassada,

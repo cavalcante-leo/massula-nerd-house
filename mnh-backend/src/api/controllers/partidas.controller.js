@@ -1,6 +1,6 @@
 const partidasService = require('../services/partidas.service');
 const jogoService = require('../services/jogo.service');
-const { validarInstante } = require('../../helpers/data.helpers');
+const { validarInstante, intervaloDoPeriodo } = require('../../helpers/data.helpers');
 
 const ERRO_JOGADA_EM = 'Campo jogada_em deve ser data e hora ISO 8601 com fuso (ex.: 2026-11-22T23:00:00.000Z ou 2026-11-22T20:00:00-03:00).';
 
@@ -36,7 +36,12 @@ exports.criarPartida = async (req, res) => {
 exports.listarPartidas = async (req, res) => {
   try {
     const filtros = req.query;
-    const partidas = await partidasService.listarPartidas(filtros);
+    // Dias (dd/mm/aaaa ou AAAA-MM-DD) no fuso do clube; o dia final entra inteiro.
+    const periodo = intervaloDoPeriodo(filtros.jogada_em_inicio, filtros.jogada_em_fim);
+    if (!periodo) {
+      return res.status(400).json({ erro: 'jogada_em_inicio/jogada_em_fim inválidos. Use dd/mm/aaaa, AAAA-MM-DD ou ISO 8601 com fuso.' });
+    }
+    const partidas = await partidasService.listarPartidas(filtros, periodo);
     return res.json(partidas);
   } catch (err) {
     return res.status(500).json({ erro: err.message });
