@@ -1,44 +1,22 @@
 const presencasService = require('../services/presenca.service');
 const dataHelpers = require('../../helpers/data.helpers');
 const jogadorService = require('../services/jogador.service');
-const { sequelize } = require('../models');
-
 
 exports.registrarPresenca = async (req, res) => {
-  const t = await sequelize.transaction();
   try {
     const { id_jogador } = req.params;
-    const { data } = req.body;
     const criado_por = req.usuario.id;
 
-    if (!dataHelpers.validarData(data)) {
-      await t.rollback();
-      return res.status(400).json({ erro: 'Data inválida. Use o formato dd/mm/aaaa.' });
+    const resultado = await presencasService.registrarPresencaDoJogador({
+      id_jogador,
+      data: req.body.data,
+      criado_por,
+    });
+    if (resultado.erro) {
+      return res.status(resultado.erro.status).json({ erro: resultado.erro.mensagem });
     }
-    if (dataHelpers.dataEhFutura(data)) {
-      await t.rollback();
-      return res.status(400).json({ erro: 'Não pode registrar data futura.' });
-    }
+    const { jogador, presenca, totalPresencas } = resultado;
 
-    const dataPresenca = dataHelpers.converterParaDate(data);
-
-    const jogador = await jogadorService.encontrarJogador(id_jogador);
-    if (!jogador) {
-      await t.rollback();
-      return res.status(404).json({ erro: 'Jogador não encontrado.' });
-    }
-
-    const jaExiste = await presencasService.verificarPresencaNaData(id_jogador, dataPresenca);
-    if (jaExiste) {
-      await t.rollback();
-      return res.status(409).json({ erro: 'Presença já registrada nessa data.' });
-    }
-
-    const presenca = await presencasService.registrarNovaPresenca(id_jogador, dataPresenca, criado_por, t);
-
-    const totalPresencas = await presencasService.contarPresencasPorJogador(id_jogador);
-
-    await t.commit();
     return res.status(201).json({
       sucesso: true,
       presenca,
@@ -50,7 +28,6 @@ exports.registrarPresenca = async (req, res) => {
       },
     });
   } catch (err) {
-    await t.rollback();
     return res.status(500).json({ erro: 'Erro ao registrar presença.', codigo: err.message });
   }
 };
