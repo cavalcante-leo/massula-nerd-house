@@ -1,6 +1,19 @@
 const { Jogo, Partida } = require('../models');
 const jogoServices = require('../services/jogo.service');
 
+const validarConfigCampos = (config) => {
+  if (!Array.isArray(config)) return 'config_campos deve ser um array.';
+  for (const campo of config) {
+    if (!campo || typeof campo.nome !== 'string' || !campo.nome.trim()) {
+      return 'Cada campo de config_campos deve ter um "nome" não vazio.';
+    }
+    if (!['texto', 'numero', 'booleano'].includes(campo.tipo)) {
+      return 'O "tipo" de cada campo deve ser "texto", "numero" ou "booleano".';
+    }
+  }
+  return null;
+};
+
 // CREATE
 exports.registrar = async (req, res) => {
   try {
@@ -9,6 +22,11 @@ exports.registrar = async (req, res) => {
 
     if (!nome || !nome.trim()) {
       return res.status(400).json({ erro: 'Nome do jogo é obrigatório.' });
+    }
+
+    if (config_campos !== undefined) {
+      const erroConfig = validarConfigCampos(config_campos);
+      if (erroConfig) return res.status(400).json({ erro: erroConfig });
     }
 
     const jogo = await Jogo.create({
@@ -86,6 +104,11 @@ exports.atualizar = async (req, res) => {
 
     if (!jogo) {
       return res.status(404).json({ erro: 'Jogo não encontrado.' });
+    }
+
+    if (config_campos !== undefined) {
+      const erroConfig = validarConfigCampos(config_campos);
+      if (erroConfig) return res.status(400).json({ erro: erroConfig });
     }
 
     if (nome !== undefined) jogo.nome = nome;

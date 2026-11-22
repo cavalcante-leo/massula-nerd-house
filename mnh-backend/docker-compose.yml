@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mnh_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mnhuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-senha}
+      POSTGRES_DB: ${POSTGRES_DB:-massula_nerd_house}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - mnh_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mnhuser} -d ${POSTGRES_DB:-massula_nerd_house}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: node:20-alpine
+    container_name: mnh_migrate
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mnhuser}:${POSTGRES_PASSWORD:-senha}@db:5432/${POSTGRES_DB:-massula_nerd_house}
+    volumes:
+      - ./prisma:/app/prisma
+      - ./prisma.config.ts:/app/prisma.config.ts
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+    command: >
+      sh -c "npm ci --no-audit --no-fund &&
+             npx prisma migrate deploy"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mnh_pgdata:

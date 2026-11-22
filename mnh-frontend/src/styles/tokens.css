@@ -1,0 +1,57 @@
+:root {
+  /* Base — papel e tinta */
+  --bg: #f3f0e7;
+  --surface: #ffffff;
+  --surface-2: #ece8db;
+  --ink: #16130f;
+  --ink-soft: #5a5448;
+  --line: #16130f;
+  --line-soft: #d4cdb8;
+
+  /* Acentos */
+  --accent: #35624a;
+  --accent-ink: #274a38;
+  --accent-soft: #dfe9e0;
+  --danger: #c1443c;
+  --danger-soft: #f6dedc;
+  --gold: #c9a227;
+  --highlight: #f5e06b;
+
+  /* Status (texto) */
+  --success-fg: #274a38;
+  --warn-fg: #8a6a10;
+  --danger-fg: #c1443c;
+  --neutral-fg: #5a5448;
+
+  /* Tipografia */
+  --font-display: 'Archivo', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Layout */
+  --sidebar-w: 232px;
+  --radius: 0px;
+  --radius-sm: 0px;
+  --shadow: 4px 4px 0 var(--ink);
+  --shadow-sm: 3px 3px 0 var(--ink);
+  --shadow-lg: 6px 6px 0 var(--ink);
+  --shadow-accent: 4px 4px 0 var(--accent-ink);
+
+  /* Espaçamento */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Aliases (compatibilidade com estilos inline existentes) */
+  --felt: var(--accent);
+  --felt-dark: var(--accent-ink);
+  --dice-red: var(--danger);
+  --wood-dark: #1d1a15;
+  --wood-line: #2a261f;
+  --parchment: var(--bg);
+  --parchment-2: var(--line-soft);
+  --cream: var(--surface);
+}

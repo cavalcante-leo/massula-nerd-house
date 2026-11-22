@@ -2,6 +2,28 @@ const partidaJogadoresService = require('../services/partidaJogadores.service');
 const jogadorService = require('../services/jogador.service');
 const partidaService = require('../services/partidas.service');
 const jogadorNivelService = require('../services/jogadorNivel.service');
+const jogoService = require('../services/jogo.service');
+
+const validarEstatisticas = (configCampos, estatisticas) => {
+  if (estatisticas === undefined || estatisticas === null) return null;
+  if (typeof estatisticas !== 'object' || Array.isArray(estatisticas)) {
+    return 'estatisticas deve ser um objeto.';
+  }
+  for (const campo of configCampos) {
+    const valor = estatisticas[campo.nome];
+    if (valor === undefined || valor === null) continue;
+    if (campo.tipo === 'numero' && typeof valor !== 'number') {
+      return `O campo "${campo.nome}" deve ser numérico.`;
+    }
+    if (campo.tipo === 'booleano' && typeof valor !== 'boolean') {
+      return `O campo "${campo.nome}" deve ser booleano (true/false).`;
+    }
+    if (campo.tipo === 'texto' && typeof valor !== 'string') {
+      return `O campo "${campo.nome}" deve ser texto.`;
+    }
+  }
+  return null;
+};
 
 exports.adicionarJogadorNaPartida = async (req, res) => {
   try {
@@ -58,6 +80,15 @@ exports.atualizarParticipante = async (req, res) => {
   try {
     const { id_partida, id_jogador } = req.params;
     const dados = req.body;
+
+    if (dados.estatisticas !== undefined) {
+      const partida = await partidaService.encontrarPartida(id_partida);
+      if (!partida) return res.status(404).json({ erro: 'Partida não encontrada.' });
+      const jogo = await jogoService.encontrarJogo(partida.id_jogo);
+      const erro = validarEstatisticas(jogo ? jogo.config_campos || [] : [], dados.estatisticas);
+      if (erro) return res.status(400).json({ erro });
+    }
+
     const participante = await partidaJogadoresService.atualizarParticipante(id_partida, id_jogador, dados);
     return res.json({ sucesso: true, participante });
   } catch (err) {

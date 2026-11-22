@@ -40,6 +40,11 @@ const criarOuAtualizarNivel = async (id_jogador, id_jogo, nivel, criado_por) => 
     defaults: { id_jogo, nivel, criado_por },
   });
 
+  if (!nivelJogo.ativo) {
+    nivelJogo.ativo = true;
+    await nivelJogo.save();
+  }
+
   const [registro] = await JogadorNivelJogo.findOrCreate({
     where: { id_jogador, id_nivel_jogo: nivelJogo.id },
     defaults: { id_jogador, id_nivel_jogo: nivelJogo.id },

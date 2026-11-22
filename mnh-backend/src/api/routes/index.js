@@ -9,6 +9,7 @@ const jogoRoutes = require('./jogo.routes');
 const presencaRoutes = require('./presenca.routes');
 const partidaRoutes = require('./partida.routes');
 const jogadorNivelRoutes = require('./jogadorNivel.routes');
+const nivelJogoRoutes = require('./nivelJogo.routes');
 
 router.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 
@@ -19,5 +20,6 @@ router.use('/jogo', jogoRoutes);
 router.use('/presenca', presencaRoutes);
 router.use('/partida', partidaRoutes);
 router.use('/jogador-nivel', jogadorNivelRoutes);
+router.use('/nivel-jogo', nivelJogoRoutes);
 
 module.exports = router;
