@@ -3,6 +3,7 @@ const http = require('http');
 const app = require('./app');
 const sequelize = require('./config/database');
 const { problemaNoSegredoJwt } = require('./config/jwt');
+const { conectarComRetentativas } = require('./config/conexao');
 
 const REQUIRED_ENV = ['JWT_SECRET', 'DATABASE_URL'];
 const faltando = REQUIRED_ENV.filter((k) => !process.env[k]);
@@ -22,7 +23,11 @@ const server = http.createServer(app);
 
 const start = async () => {
   try {
-    await sequelize.authenticate();
+    await conectarComRetentativas(sequelize, {
+      aoFalhar: (err, tentativa, espera) => {
+        console.warn(`Tentativa ${tentativa} de conectar ao banco falhou (${err.message}). Nova tentativa em ${espera / 1000}s.`);
+      },
+    });
     console.log('- Banco de Dados Conectado');
     server.listen(PORT, () => {
       console.log(`- Servidor rodando na porta: ${PORT}`);
