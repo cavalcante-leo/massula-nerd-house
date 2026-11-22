@@ -41,7 +41,7 @@ O CLI usa `DIRECT_URL` ou, na falta, `DATABASE_URL`, e recusa o transaction pool
 
 ## Banco em nuvem (Supabase + Render)
 
-1. Crie o projeto Supabase em **`us-east-1`** e o serviço do Render em **Virginia**: o banco deve ficar perto da API, não do usuário.
+1. O projeto Supabase está em **`us-east-2`**: crie o serviço do Render em **Ohio**. O banco deve ficar perto da API, não do usuário.
 2. No Supabase, desligue a **Data API** (*Settings → API*). O RLS sem policies já bloqueia `anon`/`authenticated`; a Data API desligada é a segunda barreira.
 3. Use o **session pooler** (porta 5432) em `DATABASE_URL`. O Render só tem IPv4, então a conexão direta `db.<ref>.supabase.co` (IPv6) não funciona.
 4. Defina `DB_SSL=true` e `DB_SSL_CA` com o certificado de *Database Settings → SSL*. O SSL sempre verifica o certificado; sem a CA correta, a conexão falha.
