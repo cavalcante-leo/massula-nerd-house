@@ -16,7 +16,14 @@ npm run db:seed               # cria o superadmin (exige SEED_SUPERADMIN_* no am
 npm run dev                   # nodemon
 npm start                     # produção
 npm run lint
+npm test                      # testes de API (exige o Postgres do docker compose rodando)
 ```
+
+O `npm test` (`test/executar.js`) cria **um** banco descartável `mnh_api_test_<pid>` no Postgres local, aplica as migrations, cria um superadmin e roda os arquivos `test/**/*.test.js` em série (`node:test`). No fim, mesmo com falha, apaga o banco.
+- **Isolamento:** o runner **não lê o `.env`** e recusa hosts que não sejam locais. Para outro Postgres local, use `TEST_DATABASE_ADMIN_URL`.
+- **Dados compartilhados:** todos os arquivos usam o mesmo banco. Cada teste cria os próprios dados, com nomes únicos, e não supõe tabelas vazias.
+- **Tokens:** vêm do helper (`tokenSuperadmin()`/`tokenPara(usuario)`), sem passar pela rota de login.
+- **Um arquivo só:** `npm test -- test/smoke.test.js`.
 
 Variáveis obrigatórias: `DATABASE_URL`, `JWT_SECRET`. Opcionais: `PORT` (3000), `JWT_EXPIRES_IN` (8h), `CORS_ORIGINS`, `DIRECT_URL`, `DB_SSL`, `DB_SSL_CA`, `DB_POOL_MAX` (5), `DB_POOL_MIN` (0). Todas documentadas em [`.env.example`](.env.example).
 
@@ -46,7 +53,7 @@ O CLI usa `DIRECT_URL` ou, na falta, `DATABASE_URL`, e recusa o transaction pool
 3. Use o **session pooler** (porta 5432) em `DATABASE_URL`. O Render só tem IPv4, então a conexão direta `db.<ref>.supabase.co` (IPv6) não funciona.
 4. Defina `DB_SSL=true` e `DB_SSL_CA` com o certificado de *Database Settings → SSL*. O SSL sempre verifica o certificado; sem a CA correta, a conexão falha.
 5. Da sua máquina, com o `.env` apontando para o Supabase: `npm run db:migrate`, depois `npm run db:status`, depois `npm run db:seed`. Remova as `SEED_*` em seguida.
-6. No Render, configure só `DATABASE_URL`, `DB_SSL`, `DB_SSL_CA`, `JWT_SECRET`, `JWT_EXPIRES_IN` e `CORS_ORIGINS`.
+6. No Render, configure só `NODE_ENV=production`, `DATABASE_URL`, `DB_SSL`, `DB_SSL_CA`, `JWT_SECRET`, `JWT_EXPIRES_IN` e `CORS_ORIGINS`. Fora de `NODE_ENV=development|test` (inclusive sem `NODE_ENV`), a API **não sobe** se o `JWT_SECRET` tiver menos de 32 caracteres ou for o placeholder do `.env.example`.
 
 Limitações do plano free: o Supabase pausa após 7 dias sem uso e não tem backup baixável; o Render hiberna após 15 min sem tráfego (cold start de ~30–60s).
 
@@ -67,7 +74,10 @@ Limitações do plano free: o Supabase pausa após 7 dias sem uso e não tem bac
 
 - **Patente:** `1` (<10 presenças), `2` (≥10), `3` (≥50), `4` (≥100), `5` (≥200), `6` (≥300).
 - **Presença:** data `dd/mm/aaaa`, não futura e única por jogador/dia.
-- **Nível:** jogador só entra em partida se tiver nível cadastrado para o jogo.
+- **Nível:**
+  - o jogador só entra em partida se tiver nível cadastrado para o jogo, e tem **um** nível por jogo: definir de novo substitui o anterior;
+  - o catálogo (`/nivel-jogo`) é só do superadmin. Partida e "definir nível" exigem um nível **ativo** do catálogo (400 caso contrário) e nunca criam nem reativam níveis;
+  - partidas só podem ser criadas em jogo ativo.
 - **Desativar nível:** bloqueado (409) se houver jogadores vinculados.
 - **Soft delete:** `ativo` em jogador/jogo/usuário/nível; partida usa hard delete.
 - **`config_campos`:** validado como `[{ nome, tipo: "texto" | "numero" }]`.

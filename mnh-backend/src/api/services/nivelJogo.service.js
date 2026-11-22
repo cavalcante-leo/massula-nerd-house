@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { NivelJogo, Jogo, JogadorNivelJogo, Jogador } = require('../models');
+const { ErroDominio } = require('../../helpers/erros');
 
 const encontrarNivel = async (id) => {
   return await NivelJogo.findByPk(id, {
@@ -52,7 +53,24 @@ const contarJogadoresVinculados = async (id_nivel_jogo) => {
   return await JogadorNivelJogo.count({ where: { id_nivel_jogo } });
 };
 
+/**
+ * Nível ativo do catálogo para (jogo, nivel). O catálogo é mantido só pelo superadmin
+ * (/nivel-jogo); partidas e níveis de jogador apenas o consultam, nunca criam ou reativam.
+ * Lança ErroDominio 400 se não existir ou estiver desativado.
+ */
+const exigirNivelAtivo = async (id_jogo, nivel, transaction = null) => {
+  const nivelJogo = await NivelJogo.findOne({ where: { id_jogo, nivel }, transaction });
+  if (!nivelJogo || !nivelJogo.ativo) {
+    throw new ErroDominio(
+      400,
+      `Nível ${nivel} não está cadastrado (ou está desativado) para este jogo. Cadastre-o em /nivel-jogo (superadmin).`,
+    );
+  }
+  return nivelJogo;
+};
+
 module.exports = {
+  exigirNivelAtivo,
   encontrarNivel,
   encontrarNiveisPorJogo,
   encontrarPorJogoENivel,

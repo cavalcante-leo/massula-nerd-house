@@ -1,44 +1,23 @@
 const presencasService = require('../services/presenca.service');
 const dataHelpers = require('../../helpers/data.helpers');
 const jogadorService = require('../services/jogador.service');
-const { sequelize } = require('../models');
-
+const { responderErro } = require('../../helpers/erros');
 
 exports.registrarPresenca = async (req, res) => {
-  const t = await sequelize.transaction();
   try {
     const { id_jogador } = req.params;
-    const { data } = req.body;
     const criado_por = req.usuario.id;
 
-    if (!dataHelpers.validarData(data)) {
-      await t.rollback();
-      return res.status(400).json({ erro: 'Data inválida. Use o formato dd/mm/aaaa.' });
+    const resultado = await presencasService.registrarPresencaDoJogador({
+      id_jogador,
+      data: req.body.data,
+      criado_por,
+    });
+    if (resultado.erro) {
+      return res.status(resultado.erro.status).json({ erro: resultado.erro.mensagem });
     }
-    if (dataHelpers.dataEhFutura(data)) {
-      await t.rollback();
-      return res.status(400).json({ erro: 'Não pode registrar data futura.' });
-    }
+    const { jogador, presenca, totalPresencas } = resultado;
 
-    const dataPresenca = dataHelpers.converterParaDate(data);
-
-    const jogador = await jogadorService.encontrarJogador(id_jogador);
-    if (!jogador) {
-      await t.rollback();
-      return res.status(404).json({ erro: 'Jogador não encontrado.' });
-    }
-
-    const jaExiste = await presencasService.verificarPresencaNaData(id_jogador, dataPresenca);
-    if (jaExiste) {
-      await t.rollback();
-      return res.status(409).json({ erro: 'Presença já registrada nessa data.' });
-    }
-
-    const presenca = await presencasService.registrarNovaPresenca(id_jogador, dataPresenca, criado_por, t);
-
-    const totalPresencas = await presencasService.contarPresencasPorJogador(id_jogador);
-
-    await t.commit();
     return res.status(201).json({
       sucesso: true,
       presenca,
@@ -50,29 +29,22 @@ exports.registrarPresenca = async (req, res) => {
       },
     });
   } catch (err) {
-    await t.rollback();
-    return res.status(500).json({ erro: 'Erro ao registrar presença.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar presença.');
   }
-};
-
-const parseData = (valor) => {
-  if (!valor) return null;
-  if (dataHelpers.validarData(valor)) return dataHelpers.converterParaDate(valor);
-  const d = new Date(valor);
-  return Number.isNaN(d.getTime()) ? null : d;
 };
 
 exports.listarPresencas = async (req, res) => {
   try {
     const { inicio, fim } = req.query;
-    const dataInicio = parseData(inicio) || new Date('1970-01-01');
-    const dataFim = parseData(fim) || new Date();
-    if ((inicio && !parseData(inicio)) || (fim && !parseData(fim))) {
-      return res.status(400).json({ erro: 'Datas de início ou fim inválidas.' });
+    // Aceita dd/mm/aaaa ou AAAA-MM-DD (o <input type="date"> do frontend).
+    const dataInicio = inicio ? dataHelpers.paraDataBanco(inicio) : null;
+    const dataFim = fim ? dataHelpers.paraDataBanco(fim) : null;
+    if ((inicio && !dataInicio) || (fim && !dataFim)) {
+      return res.status(400).json({ erro: 'Datas de início ou fim inválidas. Use dd/mm/aaaa ou AAAA-MM-DD.' });
     }
     const presencas = await presencasService.listarPresencasPorPeriodo(dataInicio, dataFim);
     return res.json(presencas);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao listar presenças.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao listar presenças.');
   }
 };

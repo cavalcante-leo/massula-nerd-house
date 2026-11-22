@@ -1,7 +1,7 @@
 const { Jogador } = require('../models');
 
-const encontrarJogador = async (id) => {
-    return await Jogador.findByPk(id);
+const encontrarJogador = async (id, transaction = null) => {
+    return await Jogador.findByPk(id, { transaction });
 }
 
 const calcularPatente = (totalPresencas) => {

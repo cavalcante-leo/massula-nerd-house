@@ -3,7 +3,11 @@ const express = require('express');
 const router = express.Router();
 const nivelJogoController = require('../controllers/nivelJogo.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { validarIdsDaRota } = require('../middlewares/validarIds');
+
 const superMiddleware = require('../middlewares/verificarSuperAdmin');
+
+validarIdsDaRota(router);
 
 // Rotas restritas ao super admin
 router.post('/registrar', authMiddleware, superMiddleware, nivelJogoController.registrar);

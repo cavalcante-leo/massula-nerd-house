@@ -1,4 +1,5 @@
 const { PartidaResultado, Jogador } = require('../models');
+const { ErroDominio } = require('../../helpers/erros');
 
 const encontrarParticipante = async (id_partida, id_jogador) => {
   return await PartidaResultado.findOne({ where: { id_partida, id_jogador } });
@@ -14,7 +15,7 @@ const listarParticipantesDaPartida = async (id_partida) => {
 
 const adicionarParticipante = async (id_partida, id_jogador, dados = {}) => {
   const existe = await encontrarParticipante(id_partida, id_jogador);
-  if (existe) throw new Error('Jogador já está na partida');
+  if (existe) throw new ErroDominio(409, 'Jogador já está na partida.');
   return await PartidaResultado.create({
     id_partida,
     id_jogador,
@@ -24,16 +25,24 @@ const adicionarParticipante = async (id_partida, id_jogador, dados = {}) => {
   });
 };
 
+// Lista branca: só o resultado do jogador é editável. id_partida/id_jogador vêm da URL e
+// não mudam (trocar o jogador = remover e adicionar).
+const CAMPOS_EDITAVEIS_PARTICIPANTE = ['posicao_final', 'estatisticas', 'vencedor'];
+
 const atualizarParticipante = async (id_partida, id_jogador, dados) => {
   const participante = await encontrarParticipante(id_partida, id_jogador);
-  if (!participante) throw new Error('Participante não encontrado');
-  await participante.update(dados);
+  if (!participante) throw new ErroDominio(404, 'Participante não encontrado.');
+  const update = {};
+  for (const campo of CAMPOS_EDITAVEIS_PARTICIPANTE) {
+    if (dados[campo] !== undefined) update[campo] = dados[campo];
+  }
+  await participante.update(update);
   return participante;
 };
 
 const removerParticipante = async (id_partida, id_jogador) => {
   const participante = await encontrarParticipante(id_partida, id_jogador);
-  if (!participante) throw new Error('Participante não encontrado');
+  if (!participante) throw new ErroDominio(404, 'Participante não encontrado.');
   await participante.destroy();
 };
 

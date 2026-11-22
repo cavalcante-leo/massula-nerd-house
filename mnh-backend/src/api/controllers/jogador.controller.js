@@ -1,7 +1,9 @@
-const { Jogador, JogadorPresenca, sequelize } = require('../models');
+const { Jogador, JogadorPresenca } = require('../models');
 const { fn, col } = require('sequelize');
 const dataHelpers = require('../../helpers/data.helpers');
 const jogadorServices = require('../services/jogador.service');
+const presencaService = require('../services/presenca.service');
+const { responderErro } = require('../../helpers/erros');
 
 // CREATE
 exports.registrar = async (req, res) => {
@@ -29,7 +31,7 @@ exports.registrar = async (req, res) => {
       criado_por: criado_por
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao registrar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar jogador.');
   }
 };
 
@@ -69,7 +71,7 @@ exports.listar = async (req, res) => {
 
     return res.status(200).json(resposta);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao listar jogadores.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao listar jogadores.');
   }
 };
 
@@ -93,7 +95,7 @@ exports.obterPorID = async (req, res) => {
 
     return res.status(200).json(jogadorJson);
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao buscar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao buscar jogador.');
   }
 };
 
@@ -127,7 +129,7 @@ exports.atualizar = async (req, res) => {
       }
     });
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao atualizar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao atualizar jogador.');
   }
 };
 
@@ -150,7 +152,7 @@ exports.desativar = async (req, res) => {
       return res.status(409).json({ sucesso: 'Jogador já está desativado.' });
     }
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao desativar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao desativar jogador.');
   }
 };
 
@@ -173,56 +175,24 @@ exports.reativar = async (req, res) => {
       return res.status(409).json({ sucesso: 'Jogador já está ativo.' });
     }
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao reativar jogador.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao reativar jogador.');
   }
 };
 
 // REGISTRAR PRESENÇA
+// Mesmo fluxo de POST /presenca/registrar/:id_jogador, com o formato de resposta
+// que a presença rápida do frontend espera.
 exports.registrarPresenca = async (req, res) => {
-  const t = await sequelize.transaction();
   try {
-    const { id } = req.params;
-    const { data } = req.body;
-    const criado_por = req.usuario.id;
-
-    if (!dataHelpers.validarData(data)) {
-      return res.status(400).json({ erro: 'Data inválida. Use o formato dd/mm/aaaa.' });
-    }
-
-    if (dataHelpers.dataEhFutura(data)) {
-      return res.status(400).json({ erro: 'Não é possível registrar presença em data futura.' });
-    }
-
-    const jogador = await jogadorServices.encontrarJogador(id, t);
-    if (!jogador) {
-      await t.rollback();
-      return res.status(404).json({ erro: 'Jogador não encontrado.' });
-    }
-
-    const dataPresenca = dataHelpers.converterParaDate(data);
-
-    const presencaExistente = await JogadorPresenca.findOne({
-      where: { id_jogador: id, data_presenca: dataPresenca },
-      transaction: t
+    const resultado = await presencaService.registrarPresencaDoJogador({
+      id_jogador: req.params.id,
+      data: req.body.data,
+      criado_por: req.usuario.id,
     });
-
-    if (presencaExistente) {
-      await t.rollback();
-      return res.status(409).json({ erro: 'Presença já registrada para essa data.' });
+    if (resultado.erro) {
+      return res.status(resultado.erro.status).json({ erro: resultado.erro.mensagem });
     }
-
-    const novaPresenca = await JogadorPresenca.create({
-      id_jogador: id,
-      data_presenca: dataPresenca,
-      criado_por,
-    }, { transaction: t });
-
-    const totalPresencas = await JogadorPresenca.count({
-      where: { id_jogador: id },
-      transaction: t
-    });
-
-    await t.commit();
+    const { jogador, presenca: novaPresenca, totalPresencas } = resultado;
 
     return res.status(200).json({
       sucesso: 'Presença registrada com sucesso.',
@@ -237,7 +207,6 @@ exports.registrarPresenca = async (req, res) => {
       }
     });
   } catch (err) {
-    await t.rollback();
-    return res.status(500).json({ erro: 'Erro ao registrar presença.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao registrar presença.');
   }
 };

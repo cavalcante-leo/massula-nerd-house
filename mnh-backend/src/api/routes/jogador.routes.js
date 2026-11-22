@@ -3,6 +3,9 @@ const express = require('express');
 const router = express.Router();
 const jogadorController = require('../controllers/jogador.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { validarIdsDaRota } = require('../middlewares/validarIds');
+
+validarIdsDaRota(router);
 
 // Rotas públicas
 router.post('/registrar', authMiddleware, jogadorController.registrar );

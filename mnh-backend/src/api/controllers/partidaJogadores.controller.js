@@ -3,6 +3,7 @@ const jogadorService = require('../services/jogador.service');
 const partidaService = require('../services/partidas.service');
 const jogadorNivelService = require('../services/jogadorNivel.service');
 const jogoService = require('../services/jogo.service');
+const { responderErro } = require('../../helpers/erros');
 
 const validarEstatisticas = (configCampos, estatisticas) => {
   if (estatisticas === undefined || estatisticas === null) return null;
@@ -56,13 +57,10 @@ exports.adicionarJogadorNaPartida = async (req, res) => {
     );
     return res.status(201).json(participante);
   } catch (err) {
-    if (err.message === 'Jogador já está na partida') {
-      return res.status(409).json({ erro: err.message });
-    }
     if (err.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ erro: 'Jogador já registrado nessa partida.' });
     }
-    return res.status(500).json({ erro: 'Erro ao adicionar jogador à partida.', codigo: err.message });
+    return responderErro(res, err, 'Erro ao adicionar jogador à partida.');
   }
 };
 
@@ -72,7 +70,7 @@ exports.listarParticipantes = async (req, res) => {
     const participantes = await partidaJogadoresService.listarParticipantesDaPartida(id_partida);
     return res.json(participantes);
   } catch (err) {
-    return res.status(500).json({ erro: err.message });
+    return responderErro(res, err, 'Erro ao listar participantes.');
   }
 };
 
@@ -80,6 +78,15 @@ exports.atualizarParticipante = async (req, res) => {
   try {
     const { id_partida, id_jogador } = req.params;
     const dados = req.body;
+
+    if (dados.posicao_final !== undefined && dados.posicao_final !== null) {
+      if (!Number.isInteger(Number(dados.posicao_final)) || Number(dados.posicao_final) < 1) {
+        return res.status(400).json({ erro: 'posicao_final deve ser inteiro >= 1.' });
+      }
+    }
+    if (dados.vencedor !== undefined && typeof dados.vencedor !== 'boolean') {
+      return res.status(400).json({ erro: 'vencedor deve ser true ou false.' });
+    }
 
     if (dados.estatisticas !== undefined) {
       const partida = await partidaService.encontrarPartida(id_partida);
@@ -92,7 +99,7 @@ exports.atualizarParticipante = async (req, res) => {
     const participante = await partidaJogadoresService.atualizarParticipante(id_partida, id_jogador, dados);
     return res.json({ sucesso: true, participante });
   } catch (err) {
-    return res.status(500).json({ erro: err.message });
+    return responderErro(res, err, 'Erro ao atualizar participante.');
   }
 };
 
@@ -102,6 +109,6 @@ exports.removerParticipante = async (req, res) => {
     await partidaJogadoresService.removerParticipante(id_partida, id_jogador);
     return res.json({ sucesso: true });
   } catch (err) {
-    return res.status(500).json({ erro: err.message });
+    return responderErro(res, err, 'Erro ao remover participante.');
   }
 };
