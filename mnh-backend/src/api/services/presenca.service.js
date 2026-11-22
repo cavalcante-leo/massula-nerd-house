@@ -3,13 +3,14 @@ const { Op, UniqueConstraintError } = require('sequelize');
 const dataHelpers = require('../../helpers/data.helpers');
 const jogadorService = require('./jogador.service');
 
+// Presença removida fica com ativo = false (soft delete) e não conta para total nem patente.
 const contarPresencasPorJogador = async (id_jogador, transaction = null) => {
-  return await JogadorPresenca.count({ where: { id_jogador }, transaction });
+  return await JogadorPresenca.count({ where: { id_jogador, ativo: true }, transaction });
 };
 
 const verificarPresencaNaData = async (id_jogador, data_presenca, transaction = null) => {
   const presenca = await JogadorPresenca.findOne({
-    where: { id_jogador, data_presenca },
+    where: { id_jogador, data_presenca, ativo: true },
     transaction,
   });
   return !!presenca;
@@ -43,10 +44,20 @@ const registrarPresencaDoJogador = async ({ id_jogador, data, criado_por }) => {
       if (!jogador) {
         return { erro: { status: 404, mensagem: 'Jogador não encontrado.' } };
       }
-      if (await verificarPresencaNaData(id_jogador, dataPresenca, transaction)) {
+      // O índice único (jogador, data) inclui as presenças removidas: registrar de novo
+      // num dia removido reativa a linha em vez de inserir. O lock serializa registros
+      // simultâneos do mesmo dia (o segundo vê a linha já ativa e recebe 409).
+      const existente = await JogadorPresenca.findOne({
+        where: { id_jogador, data_presenca: dataPresenca },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (existente?.ativo) {
         return { erro: ERRO_PRESENCA_DUPLICADA };
       }
-      const presenca = await registrarNovaPresenca(id_jogador, dataPresenca, criado_por, transaction);
+      const presenca = existente
+        ? await existente.update({ ativo: true, atualizado_por: criado_por }, { transaction })
+        : await registrarNovaPresenca(id_jogador, dataPresenca, criado_por, transaction);
       const totalPresencas = await contarPresencasPorJogador(id_jogador, transaction);
       return { jogador, presenca, totalPresencas };
     });
@@ -63,7 +74,10 @@ const listarPresencasPorPeriodo = async (inicio, fim) => {
   if (inicio) periodo[Op.gte] = inicio;
   if (fim) periodo[Op.lte] = fim;
   return await JogadorPresenca.findAll({
-    where: Object.getOwnPropertySymbols(periodo).length ? { data_presenca: periodo } : {},
+    where: {
+      ativo: true,
+      ...(Object.getOwnPropertySymbols(periodo).length ? { data_presenca: periodo } : {}),
+    },
     include: [{ model: Jogador, as: 'jogador', attributes: ['id', 'nome'] }],
     order: [['data_presenca', 'ASC']],
   });

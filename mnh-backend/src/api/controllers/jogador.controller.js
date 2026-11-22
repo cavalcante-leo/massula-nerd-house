@@ -56,6 +56,10 @@ exports.listar = async (req, res) => {
         model: JogadorPresenca,
         as: 'presencas',
         attributes: [],
+        // Só presenças ativas contam (presença removida = ativo false). LEFT JOIN com a
+        // condição no ON, para jogadores sem presença continuarem na lista com 0.
+        where: { ativo: true },
+        required: false,
       }],
       group: ['Jogador.id'],
       order: [['nome', 'ASC']],
@@ -85,9 +89,7 @@ exports.obterPorID = async (req, res) => {
       return res.status(404).json({ erro: 'Jogador não encontrado.' });
     }
 
-    const totalPresencas = await JogadorPresenca.count({
-      where: { id_jogador: id }
-    });
+    const totalPresencas = await presencaService.contarPresencasPorJogador(id);
 
     const jogadorJson = jogador.toJSON();
     jogadorJson.total_presencas = totalPresencas;
