@@ -21,22 +21,27 @@ const converterParaDate = (dataString) => {
     return new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia)))
 }
 
-const validarData = (dataString) => {
-    if (!dataString) return false
-    const [dia, mes, ano] = dataString.split('/')
-    if (!dia || !mes || !ano) return false
+// O Date "corrige" datas impossíveis (31/02 vira 03/03); reconstruir e comparar as
+// partes é o que revela que a data não existe no calendário.
+const dataExiste = (ano, mes, dia) => {
+    if (ano < 1 || mes < 1 || mes > 12 || dia < 1) return false
+    const d = new Date(Date.UTC(ano, mes - 1, dia))
+    return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia
+}
 
-    const date = new Date(`${ano}-${mes}-${dia}`)
-    return date instanceof Date && !isNaN(date)
+// dd/mm/aaaa (dia e mês com 1 ou 2 dígitos), existente no calendário.
+const validarData = (dataString) => {
+    if (typeof dataString !== 'string') return false
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(dataString)
+    if (!m) return false
+    return dataExiste(Number(m[3]), Number(m[2]), Number(m[1]))
 }
 
 // Data de calendário no formato do banco (AAAA-MM-DD), existente no calendário.
 const dataIsoValida = (valor) => {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor)
     if (!m) return false
-    const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])]
-    const d = new Date(Date.UTC(ano, mes - 1, dia))
-    return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia
+    return dataExiste(Number(m[1]), Number(m[2]), Number(m[3]))
 }
 
 // Converte dd/mm/aaaa ou AAAA-MM-DD para a string AAAA-MM-DD que colunas DATE recebem.

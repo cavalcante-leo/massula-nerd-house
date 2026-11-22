@@ -23,6 +23,10 @@ describe('registro de presença', () => {
       }
       const futura = await amb.req('POST', `${rota}/${jogador.id}`, { data: '01/01/2999' }, token);
       assert.equal(futura.status, 400);
+      const inexistente = await amb.req('POST', `${rota}/${jogador.id}`, { data: '31/02/2026' }, token);
+      assert.equal(inexistente.status, 400);
+      const naoString = await amb.req('POST', `${rota}/${jogador.id}`, { data: 20261110 }, token);
+      assert.equal(naoString.status, 400);
 
       const lista = await amb.req('GET', '/jogador/listar', undefined, token);
       assert.equal(lista.status, 200);
