@@ -1,4 +1,6 @@
-const { Partida, Jogo, NivelJogo, PartidaResultado, Jogador } = require('../models');
+const {
+  Partida, Jogo, NivelJogo, PartidaResultado, Jogador, sequelize,
+} = require('../models');
 const { Op } = require('sequelize');
 
 const encontrarPartida = async (id) => {
@@ -88,10 +90,15 @@ const atualizarPartida = async (id, dados, atualizado_por) => {
   return partida;
 };
 
+// Hard delete (README): apaga os resultados e a partida juntos; sem isso, a FK
+// partida_resultado → partida barra o DELETE de qualquer partida com participantes.
 const removerPartida = async (id) => {
-  const partida = await encontrarPartida(id);
-  if (!partida) throw new Error('Partida não encontrada');
-  await partida.destroy();
+  await sequelize.transaction(async (transaction) => {
+    const partida = await Partida.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!partida) throw new Error('Partida não encontrada');
+    await PartidaResultado.destroy({ where: { id_partida: partida.id }, transaction });
+    await partida.destroy({ transaction });
+  });
 };
 
 const obterRankingPartida = async (id_partida) => {

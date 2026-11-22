@@ -79,3 +79,26 @@ describe('filtro de período de partidas (fuso do clube)', () => {
     assert.equal((await listar('jogada_em_inicio=2026-02-31')).status, 400);
   });
 });
+
+describe('remover partida', () => {
+  it('remove partida com participantes junto com os resultados', async () => {
+    const sufixo = Date.now();
+    const jogo = (await amb.req('POST', '/jogo/registrar', { nome: `Jogo remover ${sufixo}` }, token)).json;
+    await amb.req('POST', '/nivel-jogo/registrar', { id_jogo: jogo.id, nivel: 1 }, token);
+    const jogador = (await amb.req('POST', '/jogador/registrar', { nome: `Remover ${sufixo}` }, token)).json;
+    await amb.req('PUT', `/jogador-nivel/jogador/${jogador.id}/jogo/${jogo.id}`, { nivel: 1 }, token);
+    const p = (await amb.req('POST', '/partida/registrar', { id_jogo: jogo.id, nivel: 1, jogada_em: '2026-11-21T22:00:00Z' }, token)).json;
+    const part = await amb.req('POST', `/partida/${p.id}/jogador/${jogador.id}`, { posicao_final: 1 }, token);
+    assert.equal(part.status, 201);
+
+    const del = await amb.req('DELETE', `/partida/remover/${p.id}`, undefined, token);
+    assert.equal(del.status, 200);
+
+    assert.equal((await amb.req('GET', `/partida/listar/${p.id}`, undefined, token)).status, 404);
+    const [linhas] = await amb.sequelize.query(
+      'SELECT count(*)::int AS n FROM partida_resultado WHERE id_partida = :id',
+      { replacements: { id: p.id } },
+    );
+    assert.equal(linhas[0].n, 0);
+  });
+});
