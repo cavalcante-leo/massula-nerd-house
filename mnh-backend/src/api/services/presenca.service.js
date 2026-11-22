@@ -35,7 +35,7 @@ const registrarPresencaDoJogador = async ({ id_jogador, data, criado_por }) => {
   if (dataHelpers.dataEhFutura(data)) {
     return { erro: { status: 400, mensagem: 'Não é possível registrar presença em data futura.' } };
   }
-  const dataPresenca = dataHelpers.converterParaDate(data);
+  const dataPresenca = dataHelpers.formatarParaBanco(data);
 
   try {
     return await sequelize.transaction(async (transaction) => {
@@ -57,9 +57,13 @@ const registrarPresencaDoJogador = async ({ id_jogador, data, criado_por }) => {
   }
 };
 
+// `inicio`/`fim`: strings AAAA-MM-DD (inclusivas) ou null para não limitar.
 const listarPresencasPorPeriodo = async (inicio, fim) => {
+  const periodo = {};
+  if (inicio) periodo[Op.gte] = inicio;
+  if (fim) periodo[Op.lte] = fim;
   return await JogadorPresenca.findAll({
-    where: { data_presenca: { [Op.between]: [inicio, fim] } },
+    where: Object.getOwnPropertySymbols(periodo).length ? { data_presenca: periodo } : {},
     include: [{ model: Jogador, as: 'jogador', attributes: ['id', 'nome'] }],
     order: [['data_presenca', 'ASC']],
   });

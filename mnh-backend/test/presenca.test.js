@@ -40,6 +40,13 @@ describe('registro de presença', () => {
     const r = await amb.req('POST', `/jogador/registrarPresenca/${jogador.id}`, { data: '10/11/2026' }, token);
     assert.equal(r.status, 200);
     assert.equal(r.json.jogador.presencas_total, 1);
+    assert.equal(r.json.jogador.data_presenca, '10/11/2026');
+
+    const [linhas] = await amb.sequelize.query(
+      'SELECT data_presenca::text AS dia FROM jogador_presenca WHERE id_jogador = :id',
+      { replacements: { id: jogador.id } },
+    );
+    assert.deepEqual(linhas.map((l) => l.dia), ['2026-11-10']);
 
     const dup = await amb.req('POST', `/jogador/registrarPresenca/${jogador.id}`, { data: '10/11/2026' }, token);
     assert.equal(dup.status, 409);
@@ -52,6 +59,17 @@ describe('registro de presença', () => {
 
     const dup = await amb.req('POST', `/presenca/registrar/${jogador.id}`, { data: '11/11/2026' }, token);
     assert.equal(dup.status, 409);
+  });
+
+  it('listar filtra pelo dia exato, em dd/mm/aaaa ou AAAA-MM-DD', async () => {
+    for (const [inicio, fim] of [['2026-11-11', '2026-11-11'], ['11/11/2026', '11/11/2026']]) {
+      const r = await amb.req('GET', `/presenca/listar?inicio=${inicio}&fim=${fim}`, undefined, token);
+      assert.equal(r.status, 200);
+      const doJogador = r.json.filter((p) => p.id_jogador === jogador.id);
+      assert.deepEqual(doJogador.map((p) => p.data_presenca), ['2026-11-11']);
+    }
+    const invalida = await amb.req('GET', '/presenca/listar?inicio=2026-02-31', undefined, token);
+    assert.equal(invalida.status, 400);
   });
 
   it('registros simultâneos no mesmo dia: um 2xx e o resto 409, nunca 500', async () => {

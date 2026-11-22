@@ -32,20 +32,14 @@ exports.registrarPresenca = async (req, res) => {
   }
 };
 
-const parseData = (valor) => {
-  if (!valor) return null;
-  if (dataHelpers.validarData(valor)) return dataHelpers.converterParaDate(valor);
-  const d = new Date(valor);
-  return Number.isNaN(d.getTime()) ? null : d;
-};
-
 exports.listarPresencas = async (req, res) => {
   try {
     const { inicio, fim } = req.query;
-    const dataInicio = parseData(inicio) || new Date('1970-01-01');
-    const dataFim = parseData(fim) || new Date();
-    if ((inicio && !parseData(inicio)) || (fim && !parseData(fim))) {
-      return res.status(400).json({ erro: 'Datas de início ou fim inválidas.' });
+    // Aceita dd/mm/aaaa ou AAAA-MM-DD (o <input type="date"> do frontend).
+    const dataInicio = inicio ? dataHelpers.paraDataBanco(inicio) : null;
+    const dataFim = fim ? dataHelpers.paraDataBanco(fim) : null;
+    if ((inicio && !dataInicio) || (fim && !dataFim)) {
+      return res.status(400).json({ erro: 'Datas de início ou fim inválidas. Use dd/mm/aaaa ou AAAA-MM-DD.' });
     }
     const presencas = await presencasService.listarPresencasPorPeriodo(dataInicio, dataFim);
     return res.json(presencas);

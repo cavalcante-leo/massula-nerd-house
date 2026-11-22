@@ -63,6 +63,8 @@ const main = async () => {
   const env = {
     ...process.env,
     NODE_ENV: 'test',
+    // Fuso do clube fixo: num CI em UTC, bugs de data deslocada (Date ↔ DATE) ficariam escondidos.
+    TZ: 'America/Sao_Paulo',
     TEST_DATABASE_URL: url.toString(),
     DATABASE_URL: url.toString(),
     DIRECT_URL: url.toString(),

@@ -30,6 +30,25 @@ const validarData = (dataString) => {
     return date instanceof Date && !isNaN(date)
 }
 
+// Data de calendário no formato do banco (AAAA-MM-DD), existente no calendário.
+const dataIsoValida = (valor) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor)
+    if (!m) return false
+    const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])]
+    const d = new Date(Date.UTC(ano, mes - 1, dia))
+    return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia
+}
+
+// Converte dd/mm/aaaa ou AAAA-MM-DD para a string AAAA-MM-DD que colunas DATE recebem.
+// Use string (e não Date) em colunas DATEONLY: o Sequelize formata um Date no fuso
+// local do processo, e meia-noite UTC vira o dia anterior num servidor em BRT.
+const paraDataBanco = (valor) => {
+    if (typeof valor !== 'string') return null
+    if (dataIsoValida(valor)) return valor
+    if (validarData(valor)) return formatarParaBanco(valor)
+    return null
+}
+
 const dataEhFutura = (dataString) => {
     if (!validarData(dataString)) return false
     return converterParaDate(dataString) > new Date()
@@ -53,6 +72,7 @@ module.exports = {
     formatarParaExibicao,
     formatarParaBanco,
     converterParaDate,
+    paraDataBanco,
     validarData,
     dataEhFutura,
     dataEhPassada,
