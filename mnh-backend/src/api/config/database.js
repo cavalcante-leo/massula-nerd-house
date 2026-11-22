@@ -5,7 +5,6 @@ const isDev = process.env.NODE_ENV !== 'production';
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: isDev ? console.log : false,
-  timezone: 'America/Sao_Paulo',
   dialectOptions: {
     connectTimeout: 10000, // 10 segundos
   },
