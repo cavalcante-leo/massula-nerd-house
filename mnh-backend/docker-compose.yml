@@ -24,13 +24,14 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-mnhuser}:${POSTGRES_PASSWORD:-senha}@db:5432/${POSTGRES_DB:-massula_nerd_house}
     volumes:
-      - ./prisma:/app/prisma
-      - ./prisma.config.ts:/app/prisma.config.ts
-      - ./package.json:/app/package.json
-      - ./package-lock.json:/app/package-lock.json
+      - ./db:/app/db:ro
+      - ./src:/app/src:ro
+      - ./.sequelizerc:/app/.sequelizerc:ro
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
     command: >
       sh -c "npm ci --no-audit --no-fund &&
-             npx prisma migrate deploy"
+             npx sequelize-cli db:migrate"
     depends_on:
       db:
         condition: service_healthy
