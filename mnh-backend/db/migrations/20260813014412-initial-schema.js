@@ -1,7 +1,5 @@
 'use strict';
 
-// Schema inicial: executa o DDL original (gerado na época pelo Prisma) sem reescrevê-lo,
-// preservando CHECK de usuario.tipo, índices únicos e FKs NO ACTION.
 const fs = require('fs');
 const path = require('path');
 
