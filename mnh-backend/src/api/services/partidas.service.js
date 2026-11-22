@@ -26,6 +26,16 @@ const listarPartidas = async (filtros = {}, periodo = null) => {
   const where = {};
   if (filtros.id_jogo) where.id_jogo = filtros.id_jogo;
   if (filtros.id_nivel_jogo) where.id_nivel_jogo = filtros.id_nivel_jogo;
+  if (filtros.id_jogador) {
+    // Filtra pelas partidas em que o jogador participou, mas continua trazendo todos os
+    // resultados de cada uma (senão vencedor e total_jogadores sairiam só do jogador).
+    const participacoes = await PartidaResultado.findAll({
+      attributes: ['id_partida'],
+      where: { id_jogador: filtros.id_jogador },
+      raw: true,
+    });
+    where.id = participacoes.map((r) => r.id_partida);
+  }
   if (periodo?.desde || periodo?.ateExclusivo) {
     where.jogada_em = {};
     if (periodo.desde) where.jogada_em[Op.gte] = periodo.desde;

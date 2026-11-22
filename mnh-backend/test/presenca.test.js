@@ -2,17 +2,21 @@ const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { prepararAmbiente } = require('./helpers/ambiente');
 
+// Um ambiente por arquivo (ver helpers/ambiente.js).
+let amb;
+let token;
+before(async () => {
+  amb = await prepararAmbiente();
+  token = amb.tokenSuperadmin();
+});
+after(async () => { await amb?.encerrar(); });
+
 describe('registro de presença', () => {
-  let amb;
-  let token;
   let jogador;
 
   before(async () => {
-    amb = await prepararAmbiente();
-    token = amb.tokenSuperadmin();
     jogador = (await amb.req('POST', '/jogador/registrar', { nome: `Presença ${Date.now()}` }, token)).json;
   });
-  after(async () => { await amb?.encerrar(); });
 
   for (const rota of ['/jogador/registrarPresenca', '/presenca/registrar']) {
     it(`${rota}: erros de validação não prendem conexões do pool`, async () => {
@@ -82,5 +86,123 @@ describe('registro de presença', () => {
     )));
     const status = respostas.map((r) => r.status).sort();
     assert.deepEqual(status, [201, 409, 409, 409]);
+  });
+});
+
+describe('presenças inativas (removidas) não contam', () => {
+  let jogador;
+
+  before(async () => {
+    jogador = (await amb.req('POST', '/jogador/registrar', { nome: `Inativas ${Date.now()}` }, token)).json;
+    for (const data of ['01/10/2026', '02/10/2026']) {
+      assert.equal((await amb.req('POST', `/presenca/registrar/${jogador.id}`, { data }, token)).status, 201);
+    }
+    await amb.sequelize.query(
+      "UPDATE jogador_presenca SET ativo = false WHERE id_jogador = :id AND data_presenca = '2026-10-02'",
+      { replacements: { id: jogador.id } },
+    );
+  });
+
+  it('total e patente consideram só as ativas (lista e detalhe)', async () => {
+    const lista = (await amb.req('GET', '/jogador/listar', undefined, token)).json;
+    assert.equal(lista.find((j) => j.id === jogador.id).total_presencas, 1);
+    const detalhe = (await amb.req('GET', `/jogador/listar/${jogador.id}`, undefined, token)).json;
+    assert.equal(detalhe.total_presencas, 1);
+  });
+
+  it('listar presenças não mostra a removida', async () => {
+    const r = (await amb.req('GET', '/presenca/listar?inicio=2026-10-01&fim=2026-10-31', undefined, token)).json;
+    assert.deepEqual(r.filter((p) => p.id_jogador === jogador.id).map((p) => p.data_presenca), ['2026-10-01']);
+  });
+
+  it('registrar de novo no dia removido reativa a mesma linha', async () => {
+    const [[antes]] = await amb.sequelize.query(
+      "SELECT id FROM jogador_presenca WHERE id_jogador = :id AND data_presenca = '2026-10-02'",
+      { replacements: { id: jogador.id } },
+    );
+    const r = await amb.req('POST', `/jogador/registrarPresenca/${jogador.id}`, { data: '02/10/2026' }, token);
+    assert.equal(r.status, 200);
+    assert.equal(r.json.jogador.presencas_total, 2);
+    const [linhas] = await amb.sequelize.query(
+      "SELECT id, ativo FROM jogador_presenca WHERE id_jogador = :id AND data_presenca = '2026-10-02'",
+      { replacements: { id: jogador.id } },
+    );
+    assert.deepEqual(linhas, [{ id: antes.id, ativo: true }]);
+
+    const dup = await amb.req('POST', `/jogador/registrarPresenca/${jogador.id}`, { data: '02/10/2026' }, token);
+    assert.equal(dup.status, 409);
+  });
+});
+
+describe('remover presença (soft delete)', () => {
+  let jogador;
+  let presenca;
+
+  before(async () => {
+    jogador = (await amb.req('POST', '/jogador/registrar', { nome: `Remover ${Date.now()}` }, token)).json;
+    for (const data of ['05/09/2026', '06/09/2026']) {
+      const r = await amb.req('POST', `/presenca/registrar/${jogador.id}`, { data }, token);
+      assert.equal(r.status, 201);
+      if (data === '06/09/2026') presenca = r.json.presenca;
+    }
+  });
+
+  it('marca ativo=false, grava atualizado_por e devolve o novo total', async () => {
+    const r = await amb.req('DELETE', `/presenca/remover/${presenca.id}`, undefined, token);
+    assert.equal(r.status, 200);
+    assert.equal(r.json.id, presenca.id);
+    assert.equal(r.json.presencas_total, 1);
+    assert.equal(r.json.patente, 1);
+
+    const [[linha]] = await amb.sequelize.query(
+      'SELECT ativo, atualizado_por FROM jogador_presenca WHERE id = :id',
+      { replacements: { id: presenca.id } },
+    );
+    assert.equal(linha.ativo, false);
+    assert.ok(linha.atualizado_por, 'atualizado_por preenchido');
+
+    const detalhe = (await amb.req('GET', `/jogador/listar/${jogador.id}`, undefined, token)).json;
+    assert.equal(detalhe.total_presencas, 1);
+  });
+
+  it('remover de novo, id inexistente ou inválido não dá 500', async () => {
+    assert.equal((await amb.req('DELETE', `/presenca/remover/${presenca.id}`, undefined, token)).status, 404);
+    assert.equal((await amb.req('DELETE', '/presenca/remover/999999', undefined, token)).status, 404);
+    assert.equal((await amb.req('DELETE', '/presenca/remover/abc', undefined, token)).status, 400);
+  });
+
+  it('exige autenticação', async () => {
+    assert.equal((await amb.req('DELETE', `/presenca/remover/${presenca.id}`)).status, 401);
+  });
+
+  it('registrar o dia removido reativa a mesma linha', async () => {
+    const r = await amb.req('POST', `/presenca/registrar/${jogador.id}`, { data: '06/09/2026' }, token);
+    assert.equal(r.status, 201);
+    assert.equal(r.json.presenca.id, presenca.id);
+  });
+});
+
+describe('histórico de presenças por jogador', () => {
+  let um;
+  let outro;
+
+  before(async () => {
+    const sufixo = Date.now();
+    um = (await amb.req('POST', '/jogador/registrar', { nome: `Histórico A ${sufixo}` }, token)).json;
+    outro = (await amb.req('POST', '/jogador/registrar', { nome: `Histórico B ${sufixo}` }, token)).json;
+    for (const [j, data] of [[um, '03/08/2026'], [um, '04/08/2026'], [outro, '03/08/2026']]) {
+      assert.equal((await amb.req('POST', `/presenca/registrar/${j.id}`, { data }, token)).status, 201);
+    }
+  });
+
+  it('filtra pelo jogador, sozinho ou com período', async () => {
+    const todas = (await amb.req('GET', `/presenca/listar?id_jogador=${um.id}`, undefined, token)).json;
+    assert.deepEqual(todas.map((p) => [p.id_jogador, p.data_presenca]), [[um.id, '2026-08-03'], [um.id, '2026-08-04']]);
+    const noDia = (await amb.req('GET', `/presenca/listar?id_jogador=${um.id}&inicio=04/08/2026`, undefined, token)).json;
+    assert.deepEqual(noDia.map((p) => p.data_presenca), ['2026-08-04']);
+  });
+
+  it('id_jogador inválido responde 400', async () => {
+    assert.equal((await amb.req('GET', '/presenca/listar?id_jogador=abc', undefined, token)).status, 400);
   });
 });

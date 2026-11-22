@@ -2,14 +2,16 @@ const { JogadorPresenca, Jogador, sequelize } = require('../models');
 const { Op, UniqueConstraintError } = require('sequelize');
 const dataHelpers = require('../../helpers/data.helpers');
 const jogadorService = require('./jogador.service');
+const { ErroDominio } = require('../../helpers/erros');
 
+// Presença removida fica com ativo = false (soft delete) e não conta para total nem patente.
 const contarPresencasPorJogador = async (id_jogador, transaction = null) => {
-  return await JogadorPresenca.count({ where: { id_jogador }, transaction });
+  return await JogadorPresenca.count({ where: { id_jogador, ativo: true }, transaction });
 };
 
 const verificarPresencaNaData = async (id_jogador, data_presenca, transaction = null) => {
   const presenca = await JogadorPresenca.findOne({
-    where: { id_jogador, data_presenca },
+    where: { id_jogador, data_presenca, ativo: true },
     transaction,
   });
   return !!presenca;
@@ -43,10 +45,20 @@ const registrarPresencaDoJogador = async ({ id_jogador, data, criado_por }) => {
       if (!jogador) {
         return { erro: { status: 404, mensagem: 'Jogador não encontrado.' } };
       }
-      if (await verificarPresencaNaData(id_jogador, dataPresenca, transaction)) {
+      // O índice único (jogador, data) inclui as presenças removidas: registrar de novo
+      // num dia removido reativa a linha em vez de inserir. O lock serializa registros
+      // simultâneos do mesmo dia (o segundo vê a linha já ativa e recebe 409).
+      const existente = await JogadorPresenca.findOne({
+        where: { id_jogador, data_presenca: dataPresenca },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (existente?.ativo) {
         return { erro: ERRO_PRESENCA_DUPLICADA };
       }
-      const presenca = await registrarNovaPresenca(id_jogador, dataPresenca, criado_por, transaction);
+      const presenca = existente
+        ? await existente.update({ ativo: true, atualizado_por: criado_por }, { transaction })
+        : await registrarNovaPresenca(id_jogador, dataPresenca, criado_por, transaction);
       const totalPresencas = await contarPresencasPorJogador(id_jogador, transaction);
       return { jogador, presenca, totalPresencas };
     });
@@ -58,18 +70,36 @@ const registrarPresencaDoJogador = async ({ id_jogador, data, criado_por }) => {
 };
 
 // `inicio`/`fim`: strings AAAA-MM-DD (inclusivas) ou null para não limitar.
-const listarPresencasPorPeriodo = async (inicio, fim) => {
+// `id_jogador` opcional: só as presenças desse jogador.
+const listarPresencasPorPeriodo = async (inicio, fim, id_jogador = null) => {
   const periodo = {};
   if (inicio) periodo[Op.gte] = inicio;
   if (fim) periodo[Op.lte] = fim;
   return await JogadorPresenca.findAll({
-    where: Object.getOwnPropertySymbols(periodo).length ? { data_presenca: periodo } : {},
+    where: {
+      ativo: true,
+      ...(id_jogador ? { id_jogador } : {}),
+      ...(Object.getOwnPropertySymbols(periodo).length ? { data_presenca: periodo } : {}),
+    },
     include: [{ model: Jogador, as: 'jogador', attributes: ['id', 'nome'] }],
     order: [['data_presenca', 'ASC']],
   });
 };
 
+// Soft delete: a presença sai da contagem e da patente, mas a linha fica (auditoria) e
+// pode ser reativada registrando o mesmo dia de novo.
+const removerPresenca = async (id, atualizado_por) => {
+  return await sequelize.transaction(async (transaction) => {
+    const presenca = await JogadorPresenca.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!presenca || !presenca.ativo) throw new ErroDominio(404, 'Presença não encontrada.');
+    await presenca.update({ ativo: false, atualizado_por }, { transaction });
+    const totalPresencas = await contarPresencasPorJogador(presenca.id_jogador, transaction);
+    return { presenca, totalPresencas };
+  });
+};
+
 module.exports = {
+  removerPresenca,
   contarPresencasPorJogador,
   verificarPresencaNaData,
   registrarNovaPresenca,

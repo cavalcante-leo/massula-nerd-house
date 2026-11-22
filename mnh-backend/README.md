@@ -66,23 +66,25 @@ Limitações do plano free: o Supabase pausa após 7 dias sem uso e não tem bac
 | Jogadores | `/api/jogador` | CRUD + presença rápida |
 | Jogos | `/api/jogo` | CRUD (superadmin para mutações) |
 | Catálogo de níveis | `/api/nivel-jogo` | CRUD de `nivel_jogo` por jogo (superadmin para mutações) |
-| Partidas | `/api/partida` | CRUD + ranking + participantes |
-| Presenças | `/api/presenca` | listar por período + registrar |
+| Partidas | `/api/partida` | CRUD + ranking + participantes; `GET /listar` filtra por `id_jogo`, `id_nivel_jogo`, `id_jogador` e período |
+| Presenças | `/api/presenca` | listar (período e `id_jogador` opcionais) + registrar + remover (`DELETE /remover/:id`) |
 | Níveis do jogador | `/api/jogador-nivel` | obter/listar/definir nível |
+| Ranking | `/api/ranking` | ranking geral por vitórias (`id_jogo`, `inicio`, `fim` opcionais) |
 
 ## Regras de negócio
 
 - **Patente:** `1` (<10 presenças), `2` (≥10), `3` (≥50), `4` (≥100), `5` (≥200), `6` (≥300).
-- **Presença:** data `dd/mm/aaaa`, não futura e única por jogador/dia.
+- **Presença:** data `dd/mm/aaaa`, não futura e única por jogador/dia. Remover é soft delete (`ativo=false`): sai do total e da patente, e registrar o mesmo dia de novo reativa a linha. Remover uma presença já removida responde 404.
 - **Nível:**
   - o jogador só entra em partida se tiver nível cadastrado para o jogo, e tem **um** nível por jogo: definir de novo substitui o anterior;
   - o catálogo (`/nivel-jogo`) é só do superadmin. Partida e "definir nível" exigem um nível **ativo** do catálogo (400 caso contrário) e nunca criam nem reativam níveis;
   - partidas só podem ser criadas em jogo ativo.
 - **Desativar nível:** bloqueado (409) se houver jogadores vinculados.
-- **Soft delete:** `ativo` em jogador/jogo/usuário/nível; partida usa hard delete.
+- **Ranking geral** (`GET /ranking`): por jogador, `vitorias` (`vencedor = true`), `partidas` jogadas e `percentual_vitorias` (1 casa decimal). Ordena por vitórias e depois por %, e o empate nos dois divide a `posicao`. Só entra quem jogou no recorte. Jogador desativado continua no ranking, com `ativo: false`. O período segue o de `/partida/listar`: dias no fuso de Brasília, com o dia final inteiro.
+- **Soft delete:** `ativo` em jogador/jogo/usuário/nível/presença; partida usa hard delete.
 - **`config_campos`:** validado como `[{ nome, tipo: "texto" | "numero" }]`.
 
 ## Pendências conhecidas
 
-- Endpoints de agregação do dashboard (RF-004/005/006) ainda não implementados.
+- Endpoints de agregação do dashboard (RF-004/005/006) ainda não implementados, além do ranking geral.
 - Formato de resposta de sucesso é inconsistente entre controllers.
