@@ -53,7 +53,7 @@ O CLI usa `DIRECT_URL` ou, na falta, `DATABASE_URL`, e recusa o transaction pool
 3. Use o **session pooler** (porta 5432) em `DATABASE_URL`. O Render só tem IPv4, então a conexão direta `db.<ref>.supabase.co` (IPv6) não funciona.
 4. Defina `DB_SSL=true` e `DB_SSL_CA` com o certificado de *Database Settings → SSL*. O SSL sempre verifica o certificado; sem a CA correta, a conexão falha.
 5. Da sua máquina, com o `.env` apontando para o Supabase: `npm run db:migrate`, depois `npm run db:status`, depois `npm run db:seed`. Remova as `SEED_*` em seguida.
-6. No Render, configure só `DATABASE_URL`, `DB_SSL`, `DB_SSL_CA`, `JWT_SECRET`, `JWT_EXPIRES_IN` e `CORS_ORIGINS`.
+6. No Render, configure só `NODE_ENV=production`, `DATABASE_URL`, `DB_SSL`, `DB_SSL_CA`, `JWT_SECRET`, `JWT_EXPIRES_IN` e `CORS_ORIGINS`. Fora de `NODE_ENV=development|test` (inclusive sem `NODE_ENV`), a API **não sobe** se o `JWT_SECRET` tiver menos de 32 caracteres ou for o placeholder do `.env.example`.
 
 Limitações do plano free: o Supabase pausa após 7 dias sem uso e não tem backup baixável; o Render hiberna após 15 min sem tráfego (cold start de ~30–60s).
 
