@@ -176,3 +176,56 @@ describe('lista branca nas atualizações', () => {
     assert.equal((await amb.req('PUT', `/partida/${partida.id}/jogador/${j1.id}`, { vencedor: 'sim' }, token)).status, 400);
   });
 });
+
+describe('histórico de partidas por jogador', () => {
+  let jogo;
+  let ana;
+  let bia;
+  let caio;
+  let comAna;
+  let semAna;
+
+  before(async () => {
+    const sufixo = Date.now();
+    jogo = (await amb.req('POST', '/jogo/registrar', { nome: `Jogo histórico ${sufixo}` }, token)).json;
+    await amb.req('POST', '/nivel-jogo/registrar', { id_jogo: jogo.id, nivel: 1 }, token);
+    const jogadores = [];
+    for (const nome of ['Ana', 'Bia', 'Caio']) {
+      const j = (await amb.req('POST', '/jogador/registrar', { nome: `${nome} ${sufixo}` }, token)).json;
+      await amb.req('PUT', `/jogador-nivel/jogador/${j.id}/jogo/${jogo.id}`, { nivel: 1 }, token);
+      jogadores.push(j);
+    }
+    [ana, bia, caio] = jogadores;
+    const nova = async () => (await amb.req('POST', '/partida/registrar', { id_jogo: jogo.id, nivel: 1, jogada_em: '2026-10-10T22:00:00Z' }, token)).json;
+    comAna = await nova();
+    semAna = await nova();
+    await amb.req('POST', `/partida/${comAna.id}/jogador/${ana.id}`, { posicao_final: 2 }, token);
+    await amb.req('POST', `/partida/${comAna.id}/jogador/${bia.id}`, { posicao_final: 1, vencedor: true }, token);
+    await amb.req('POST', `/partida/${semAna.id}/jogador/${bia.id}`, { posicao_final: 1, vencedor: true }, token);
+  });
+
+  it('lista só as partidas do jogador, com vencedor e total da partida inteira', async () => {
+    const r = await amb.req('GET', `/partida/listar?id_jogador=${ana.id}`, undefined, token);
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json.map((p) => p.id), [comAna.id]);
+    assert.equal(r.json[0].total_jogadores, 2);
+    assert.equal(r.json[0].vencedor, bia.nome);
+  });
+
+  it('combina com os outros filtros e devolve vazio para quem não jogou', async () => {
+    const comJogo = await amb.req('GET', `/partida/listar?id_jogador=${bia.id}&id_jogo=${jogo.id}`, undefined, token);
+    assert.deepEqual(comJogo.json.map((p) => p.id).sort(), [comAna.id, semAna.id].sort());
+    const foraDoPeriodo = await amb.req('GET', `/partida/listar?id_jogador=${bia.id}&jogada_em_inicio=2026-10-11`, undefined, token);
+    assert.equal(foraDoPeriodo.json.length, 0);
+    const semPartidas = await amb.req('GET', `/partida/listar?id_jogador=${caio.id}`, undefined, token);
+    assert.deepEqual(semPartidas.json, []);
+  });
+
+  it('id_jogador inválido responde 400', async () => {
+    for (const q of ['abc', '0', '1.5']) {
+      assert.equal((await amb.req('GET', `/partida/listar?id_jogador=${q}`, undefined, token)).status, 400, q);
+    }
+    const repetido = await amb.req('GET', `/partida/listar?id_jogador=${ana.id}&id_jogador=${bia.id}`, undefined, token);
+    assert.equal(repetido.status, 400);
+  });
+});

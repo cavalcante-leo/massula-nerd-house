@@ -181,3 +181,28 @@ describe('remover presença (soft delete)', () => {
     assert.equal(r.json.presenca.id, presenca.id);
   });
 });
+
+describe('histórico de presenças por jogador', () => {
+  let um;
+  let outro;
+
+  before(async () => {
+    const sufixo = Date.now();
+    um = (await amb.req('POST', '/jogador/registrar', { nome: `Histórico A ${sufixo}` }, token)).json;
+    outro = (await amb.req('POST', '/jogador/registrar', { nome: `Histórico B ${sufixo}` }, token)).json;
+    for (const [j, data] of [[um, '03/08/2026'], [um, '04/08/2026'], [outro, '03/08/2026']]) {
+      assert.equal((await amb.req('POST', `/presenca/registrar/${j.id}`, { data }, token)).status, 201);
+    }
+  });
+
+  it('filtra pelo jogador, sozinho ou com período', async () => {
+    const todas = (await amb.req('GET', `/presenca/listar?id_jogador=${um.id}`, undefined, token)).json;
+    assert.deepEqual(todas.map((p) => [p.id_jogador, p.data_presenca]), [[um.id, '2026-08-03'], [um.id, '2026-08-04']]);
+    const noDia = (await amb.req('GET', `/presenca/listar?id_jogador=${um.id}&inicio=04/08/2026`, undefined, token)).json;
+    assert.deepEqual(noDia.map((p) => p.data_presenca), ['2026-08-04']);
+  });
+
+  it('id_jogador inválido responde 400', async () => {
+    assert.equal((await amb.req('GET', '/presenca/listar?id_jogador=abc', undefined, token)).status, 400);
+  });
+});

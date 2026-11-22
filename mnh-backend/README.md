@@ -66,8 +66,8 @@ Limitações do plano free: o Supabase pausa após 7 dias sem uso e não tem bac
 | Jogadores | `/api/jogador` | CRUD + presença rápida |
 | Jogos | `/api/jogo` | CRUD (superadmin para mutações) |
 | Catálogo de níveis | `/api/nivel-jogo` | CRUD de `nivel_jogo` por jogo (superadmin para mutações) |
-| Partidas | `/api/partida` | CRUD + ranking + participantes |
-| Presenças | `/api/presenca` | listar por período + registrar + remover (`DELETE /remover/:id`) |
+| Partidas | `/api/partida` | CRUD + ranking + participantes; `GET /listar` filtra por `id_jogo`, `id_nivel_jogo`, `id_jogador` e período |
+| Presenças | `/api/presenca` | listar (período e `id_jogador` opcionais) + registrar + remover (`DELETE /remover/:id`) |
 | Níveis do jogador | `/api/jogador-nivel` | obter/listar/definir nível |
 
 ## Regras de negócio

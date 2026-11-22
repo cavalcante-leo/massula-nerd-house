@@ -70,13 +70,15 @@ const registrarPresencaDoJogador = async ({ id_jogador, data, criado_por }) => {
 };
 
 // `inicio`/`fim`: strings AAAA-MM-DD (inclusivas) ou null para não limitar.
-const listarPresencasPorPeriodo = async (inicio, fim) => {
+// `id_jogador` opcional: só as presenças desse jogador.
+const listarPresencasPorPeriodo = async (inicio, fim, id_jogador = null) => {
   const periodo = {};
   if (inicio) periodo[Op.gte] = inicio;
   if (fim) periodo[Op.lte] = fim;
   return await JogadorPresenca.findAll({
     where: {
       ativo: true,
+      ...(id_jogador ? { id_jogador } : {}),
       ...(Object.getOwnPropertySymbols(periodo).length ? { data_presenca: periodo } : {}),
     },
     include: [{ model: Jogador, as: 'jogador', attributes: ['id', 'nome'] }],

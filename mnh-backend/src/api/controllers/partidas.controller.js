@@ -39,7 +39,7 @@ exports.criarPartida = async (req, res) => {
 exports.listarPartidas = async (req, res) => {
   try {
     const filtros = req.query;
-    for (const campo of ['id_jogo', 'id_nivel_jogo']) {
+    for (const campo of ['id_jogo', 'id_nivel_jogo', 'id_jogador']) {
       if (filtros[campo] !== undefined && !ehIdValido(filtros[campo])) {
         return res.status(400).json({ erro: `${campo} deve ser um inteiro positivo.` });
       }
