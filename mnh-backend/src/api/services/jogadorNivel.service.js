@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const {
   JogadorNivelJogo, NivelJogo, Jogo, Jogador, sequelize,
 } = require('../models');
+const nivelJogoService = require('./nivelJogo.service');
 
 // Com o nível único por jogo garantido em criarOuAtualizarNivel, há no máximo um vínculo;
 // a ordenação só torna determinístico o caso de dados antigos duplicados (fica o mais recente).
@@ -45,20 +46,11 @@ const encontrarNiveisPorJogo = async (id_jogo) => {
  * anterior (com outro nível do mesmo jogo) é substituído, não acumulado.
  * Tudo numa transação, com lock na linha do jogador para serializar definições simultâneas.
  */
-const criarOuAtualizarNivel = async (id_jogador, id_jogo, nivel, criado_por) => {
+const criarOuAtualizarNivel = async (id_jogador, id_jogo, nivel) => {
   return await sequelize.transaction(async (transaction) => {
     await Jogador.findByPk(id_jogador, { transaction, lock: transaction.LOCK.UPDATE });
 
-    const [nivelJogo] = await NivelJogo.findOrCreate({
-      where: { id_jogo, nivel },
-      defaults: { id_jogo, nivel, criado_por },
-      transaction,
-    });
-
-    if (!nivelJogo.ativo) {
-      nivelJogo.ativo = true;
-      await nivelJogo.save({ transaction });
-    }
+    const nivelJogo = await nivelJogoService.exigirNivelAtivo(id_jogo, nivel, transaction);
 
     const vinculosNoJogo = await JogadorNivelJogo.findAll({
       where: { id_jogador },

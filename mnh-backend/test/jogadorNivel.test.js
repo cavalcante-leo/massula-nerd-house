@@ -20,6 +20,11 @@ describe('nível do jogador por jogo', () => {
     jogoA = (await amb.req('POST', '/jogo/registrar', { nome: `Nível A ${sufixo}` }, token)).json;
     jogoB = (await amb.req('POST', '/jogo/registrar', { nome: `Nível B ${sufixo}` }, token)).json;
     jogador = (await amb.req('POST', '/jogador/registrar', { nome: `Jogador nível ${sufixo}` }, token)).json;
+    // O catálogo é do superadmin: os níveis precisam existir antes de serem atribuídos.
+    for (const nivel of [1, 3, 4, 5, 6]) {
+      await amb.req('POST', '/nivel-jogo/registrar', { id_jogo: jogoA.id, nivel }, token);
+    }
+    await amb.req('POST', '/nivel-jogo/registrar', { id_jogo: jogoB.id, nivel: 2 }, token);
   });
 
   const definir = (idJogo, nivel) => amb.req('PUT', `/jogador-nivel/jogador/${jogador.id}/jogo/${idJogo}`, { nivel }, token);
@@ -53,5 +58,63 @@ describe('nível do jogador por jogo', () => {
     assert.ok(respostas.every((r) => r.status === 200), respostas.map((r) => r.status).join(','));
     const doJogoA = (await niveisDoJogador()).filter((v) => v.nivelJogo.id_jogo === jogoA.id);
     assert.equal(doJogoA.length, 1);
+  });
+});
+
+describe('catálogo de níveis é só do superadmin', () => {
+  let jogo;
+  let jogador;
+  let tokenAdmin;
+
+  before(async () => {
+    const sufixo = Date.now();
+    jogo = (await amb.req('POST', '/jogo/registrar', { nome: `Catálogo ${sufixo}` }, token)).json;
+    await amb.req('POST', '/nivel-jogo/registrar', { id_jogo: jogo.id, nivel: 1 }, token);
+    jogador = (await amb.req('POST', '/jogador/registrar', { nome: `Catálogo ${sufixo}` }, token)).json;
+    const admin = (await amb.req('POST', '/usuario/registrar', {
+      nome: `Admin cat ${sufixo}`, nome_usuario: `admin_cat_${sufixo}`, senha: 'senha-de-teste-123',
+    }, token)).json;
+    tokenAdmin = amb.tokenPara(admin);
+  });
+
+  const catalogo = async () => (await amb.req('GET', `/nivel-jogo/jogo/${jogo.id}`, undefined, token)).json
+    .map((n) => `${n.nivel}:${n.ativo}`);
+
+  it('admin comum não cria nível no catálogo ao criar partida (400)', async () => {
+    const r = await amb.req('POST', '/partida/registrar', { id_jogo: jogo.id, nivel: 7, jogada_em: '2026-11-20T23:00:00Z' }, tokenAdmin);
+    assert.equal(r.status, 400);
+    assert.match(r.json.erro, /Nível 7 não está cadastrado/);
+    assert.deepEqual(await catalogo(), ['1:true']);
+  });
+
+  it('definir nível fora do catálogo responde 400 e não cria o nível', async () => {
+    const r = await amb.req('PUT', `/jogador-nivel/jogador/${jogador.id}/jogo/${jogo.id}`, { nivel: 9 }, tokenAdmin);
+    assert.equal(r.status, 400);
+    assert.deepEqual(await catalogo(), ['1:true']);
+  });
+
+  it('nível desativado não é reativado por partida nem por definir nível', async () => {
+    const n5 = (await amb.req('POST', '/nivel-jogo/registrar', { id_jogo: jogo.id, nivel: 5 }, token)).json;
+    assert.equal((await amb.req('PUT', `/nivel-jogo/desativar/${n5.id}`, undefined, token)).status, 200);
+
+    const p = await amb.req('POST', '/partida/registrar', { id_jogo: jogo.id, nivel: 5, jogada_em: '2026-11-20T23:00:00Z' }, tokenAdmin);
+    assert.equal(p.status, 400);
+    const d = await amb.req('PUT', `/jogador-nivel/jogador/${jogador.id}/jogo/${jogo.id}`, { nivel: 5 }, tokenAdmin);
+    assert.equal(d.status, 400);
+    assert.deepEqual((await catalogo()).sort(), ['1:true', '5:false']);
+  });
+
+  it('partida em jogo desativado responde 400', async () => {
+    const outro = (await amb.req('POST', '/jogo/registrar', { nome: `Desativado ${Date.now()}` }, token)).json;
+    await amb.req('POST', '/nivel-jogo/registrar', { id_jogo: outro.id, nivel: 1 }, token);
+    assert.equal((await amb.req('PUT', `/jogo/desativar/${outro.id}`, undefined, token)).status, 200);
+    const r = await amb.req('POST', '/partida/registrar', { id_jogo: outro.id, nivel: 1, jogada_em: '2026-11-20T23:00:00Z' }, tokenAdmin);
+    assert.equal(r.status, 400);
+    assert.match(r.json.erro, /Jogo desativado/);
+  });
+
+  it('nível do catálogo funciona normalmente para admin comum', async () => {
+    const r = await amb.req('POST', '/partida/registrar', { id_jogo: jogo.id, nivel: 1, jogada_em: '2026-11-20T23:00:00Z' }, tokenAdmin);
+    assert.equal(r.status, 201);
   });
 });

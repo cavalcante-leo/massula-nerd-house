@@ -27,6 +27,7 @@ exports.criarPartida = async (req, res) => {
     const partida = await partidasService.criarPartida({ id_jogo, nivel, jogada_em: dataJogada, criado_por });
     return res.status(201).json(partida);
   } catch (err) {
+    if (responderErroDominio(res, err)) return undefined;
     if (err.name === 'SequelizeForeignKeyConstraintError') {
       return res.status(409).json({ erro: 'Violação de chave estrangeira. Verifique se id_jogo existe.' });
     }

@@ -3,6 +3,14 @@ const {
 } = require('../models');
 const { Op } = require('sequelize');
 const { ErroDominio } = require('../../helpers/erros');
+const nivelJogoService = require('./nivelJogo.service');
+
+const exigirJogoAtivo = async (id_jogo) => {
+  const jogo = await Jogo.findByPk(id_jogo, { attributes: ['id', 'ativo'] });
+  if (!jogo) throw new ErroDominio(404, `Jogo com id ${id_jogo} não encontrado.`);
+  if (!jogo.ativo) throw new ErroDominio(400, 'Jogo desativado: não é possível registrar partidas nele.');
+  return jogo;
+};
 
 const encontrarPartida = async (id) => {
   return await Partida.findByPk(id, {
@@ -52,15 +60,8 @@ const listarPartidas = async (filtros = {}, periodo = null) => {
 const criarPartida = async (dados) => {
   const { id_jogo, nivel, jogada_em, criado_por } = dados;
 
-  const [nivelJogo] = await NivelJogo.findOrCreate({
-    where: { id_jogo, nivel },
-    defaults: { id_jogo, nivel, criado_por },
-  });
-
-  if (!nivelJogo.ativo) {
-    nivelJogo.ativo = true;
-    await nivelJogo.save();
-  }
+  await exigirJogoAtivo(id_jogo);
+  const nivelJogo = await nivelJogoService.exigirNivelAtivo(id_jogo, nivel);
 
   return await Partida.create({
     id_jogo,
@@ -88,15 +89,13 @@ const atualizarPartida = async (id, dados, atualizado_por) => {
     if (participantes > 0) {
       throw new ErroDominio(409, 'Não é possível trocar o jogo de uma partida que já tem participantes. Remova os participantes antes.');
     }
+    await exigirJogoAtivo(idJogo);
   }
   // Trocar de jogo sem informar o nível mantém o número do nível, mas no catálogo do novo
   // jogo: id_nivel_jogo nunca pode apontar para um nível de outro jogo.
   const nivel = dados.nivel ?? (trocouJogo ? partida.nivelJogo?.nivel : undefined);
   if (nivel !== undefined) {
-    const [nivelJogo] = await NivelJogo.findOrCreate({
-      where: { id_jogo: idJogo, nivel },
-      defaults: { id_jogo: idJogo, nivel, criado_por: atualizado_por },
-    });
+    const nivelJogo = await nivelJogoService.exigirNivelAtivo(idJogo, nivel);
     update.id_nivel_jogo = nivelJogo.id;
   }
 

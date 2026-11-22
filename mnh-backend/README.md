@@ -74,7 +74,10 @@ Limitações do plano free: o Supabase pausa após 7 dias sem uso e não tem bac
 
 - **Patente:** `1` (<10 presenças), `2` (≥10), `3` (≥50), `4` (≥100), `5` (≥200), `6` (≥300).
 - **Presença:** data `dd/mm/aaaa`, não futura e única por jogador/dia.
-- **Nível:** jogador só entra em partida se tiver nível cadastrado para o jogo.
+- **Nível:**
+  - o jogador só entra em partida se tiver nível cadastrado para o jogo, e tem **um** nível por jogo: definir de novo substitui o anterior;
+  - o catálogo (`/nivel-jogo`) é só do superadmin. Partida e "definir nível" exigem um nível **ativo** do catálogo (400 caso contrário) e nunca criam nem reativam níveis;
+  - partidas só podem ser criadas em jogo ativo.
 - **Desativar nível:** bloqueado (409) se houver jogadores vinculados.
 - **Soft delete:** `ativo` em jogador/jogo/usuário/nível; partida usa hard delete.
 - **`config_campos`:** validado como `[{ nome, tipo: "texto" | "numero" }]`.
