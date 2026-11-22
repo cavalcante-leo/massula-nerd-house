@@ -16,7 +16,14 @@ npm run db:seed               # cria o superadmin (exige SEED_SUPERADMIN_* no am
 npm run dev                   # nodemon
 npm start                     # produção
 npm run lint
+npm test                      # testes de API (exige o Postgres do docker compose rodando)
 ```
+
+O `npm test` (`test/executar.js`) cria **um** banco descartável `mnh_api_test_<pid>` no Postgres local, aplica as migrations, cria um superadmin e roda os arquivos `test/**/*.test.js` em série (`node:test`). No fim, mesmo com falha, apaga o banco.
+- **Isolamento:** o runner **não lê o `.env`** e recusa hosts que não sejam locais. Para outro Postgres local, use `TEST_DATABASE_ADMIN_URL`.
+- **Dados compartilhados:** todos os arquivos usam o mesmo banco. Cada teste cria os próprios dados, com nomes únicos, e não supõe tabelas vazias.
+- **Tokens:** vêm do helper (`tokenSuperadmin()`/`tokenPara(usuario)`), sem passar pela rota de login.
+- **Um arquivo só:** `npm test -- test/smoke.test.js`.
 
 Variáveis obrigatórias: `DATABASE_URL`, `JWT_SECRET`. Opcionais: `PORT` (3000), `JWT_EXPIRES_IN` (8h), `CORS_ORIGINS`, `DIRECT_URL`, `DB_SSL`, `DB_SSL_CA`, `DB_POOL_MAX` (5), `DB_POOL_MIN` (0). Todas documentadas em [`.env.example`](.env.example).
 

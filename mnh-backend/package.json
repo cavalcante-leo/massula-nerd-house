@@ -11,7 +11,8 @@
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:status": "sequelize-cli db:migrate:status",
-    "db:seed": "sequelize-cli db:seed:all"
+    "db:seed": "sequelize-cli db:seed:all",
+    "test": "node test/executar.js"
   },
   "keywords": [
     "node.js",
@@ -30,7 +31,7 @@
   "license": "MIT",
   "type": "commonjs",
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=22"
   },
   "husky": {
     "hooks": {
